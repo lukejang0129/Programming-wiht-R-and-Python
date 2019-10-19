@@ -1,0 +1,365 @@
+---
+title: "Stats 102C, Homework 1"
+author: "JANG,JUNHYUK"
+output:
+  pdf_document: default
+  html_document: default
+---
+SID : 004 728 134
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Homework Questions, copyright Miles Chen. Do not post or distribute without permission.
+
+## Reading and Viewing:
+
+- Introducing Monte Carlo Methods with R: Section 2.1, and Section 2.3
+- Kolmogorov-Smirnov Test on Youtube: <https://www.youtube.com/watch?v=ZO2RmSkXK3c> (This video covers the two-sample test, but we will conduct a one-sample test against a reference distribution)
+
+## Problem 1 - Estimate pi (poorly)
+
+A "fun" Monte Carlo Exercise ... Get a bad estimate of pi by using random uniform numbers.
+
+In this first exercise, we can see how a simple source of randomness (in our case, R's `runif()` function) can be used to estimate tough quantities.
+
+We will find an estimate of pi by estimating the ratio between the area of a circle and its encompassing square.
+
+```{r}
+s <- seq(-1,1, by = 0.001)
+posf <- sqrt(1-s^2)
+plot(s, posf, type = "l", asp = 1, ylim = c(-1,1))
+lines(s, -1*posf)
+segments(-1,-1,-1,1)
+segments(-1,-1,1,-1)
+segments(1,1,-1,1)
+segments(1,1,1,-1)
+```
+
+To calculate the area of the circle analytically, we would need to integrate the function drawing the upper semi-circle and then multiply that by 2. This process requires the use of trig substitutions, and while doable, can illustrate a time where the analytic solution is not easy.
+
+$$Area = 2 \times \int_{-1}^1 \sqrt{1 - x^2} dx$$
+
+For the Monte-Carlo approach, we will use `runif(n, min = -1, max=1)` to generate a bunch of random pairs of x and y coordinates. We will see how many of those random uniform points fall within the circle. This is easy - just see if $x^2 + y^2 \le 1$. The total area of the square is 4. The total area of the circle is pi. Thus, the proportion of coordinates that satisfy the inequality  $x^2 + y^2 \le 1 \approx \pi/4$.
+
+Instructions:
+
+- create a vector x of n random values between -1 and 1. I suggest starting with n = 500
+- create a vector y of n random values between -1 and 1. Use the two vectors to make coordinate pairs.
+- calculate which of points satisfy the inequality for falling inside the circle.
+- Print out your estimate of pi by multiplying the proportion by 4.
+- plot each of those (x,y) coordinate pairs. Use pch = 20. Color the points based on whether they fall in the circle or not.
+
+```{r}
+set.seed(1)
+x <- runif(500,-1,1)
+y <- runif(500,-1,1)
+
+x_satis <- c()
+y_satis <- c()
+satisf <- function(x,y){
+        count <- 0
+        for(i in 1: length(x)){
+                if((x[i])^2 + (y[i])^2 < 1){
+                        count <- count + 1
+                        x_satis[i] <- x[i]
+                        y_satis[i] <- y[i]
+                }
+        }
+        return(list(count = count, x_satis = x_satis, y_satis = y_satis))
+}
+# The number of total satisfied points among 500
+satisf(x,y)$count
+
+# calculate which of points satisfy the inequality for falling inside the circle.
+satis_df <- data.frame(satisfied_x = satisf(x,y)$x_satis,satisfied_y = satisf(x,y)$y_satis)
+clean_satis <- na.omit(satis_df)
+
+# Print out your estimate of pi by multiplying the proportion by 4.
+(pi <- (satisf(x,y)$count / 500) * 4)
+
+# plot each of those (x,y) coordinate pairs. Use pch = 20. 
+# Color the points based on whether they fall in the circle or not.
+s <- seq(-1,1, by = 0.001)
+posf <- sqrt(1-s^2)
+plot(s, posf, type = "l", asp = 1, ylim = c(-1,1))
+lines(s, -1*posf)
+segments(-1,-1,-1,1)
+segments(-1,-1,1,-1)
+segments(1,1,-1,1)
+segments(1,1,1,-1)
+
+points(x,y, col = "blue",pch = 20)
+points(clean_satis$satisfied_x,clean_satis$satisfied_y,col = "red",pch = 20)
+```
+
+
+## Problem 2
+
+Write a function `my_rexp(n, rate)`, that will generate `n` random values drawn from an exponential distribution with lambda = "rate" by using the inverse CDF method. Use `runif()` as your sole source of randomness.
+
+You are not allowed to use any of the functions `dexp()`, `pexp()`, `qexp()`, or `rexp()`. 
+
+Use your function to generate 500 random samples from an exponential distribution with lambda  = 1.
+
+After generating 500 samples, plot the empirical CDF function of your data (see `ecdf`). Add the theoretic CDF of the exponential distribution to the same plot (in a different color). 
+
+Use the Kolmogorov-Smirnov test to compare your generated samples to the theoretic exponential distribution. Be sure to print out the resulting p-value and comment on the sample produced by your function.
+
+```{r}
+my_rexp <- function(n, rate){
+  x <- c()
+  for(i in 1:n){
+          x[i] <- (-1/rate)*log(runif(1))
+  }
+  return(x)
+}
+set.seed(1234)
+(p <- runif(1))
+set.seed(1234)
+my_rexp(500,1)
+-log(0.8010433)
+x <- my_rexp(500, rate = 1)
+plot(ecdf(x))
+vals <- seq(0.01, max(x), by = 0.01) 
+lines(vals, pexp(vals, rate = 1), col = "red") 
+
+# ks test
+ks.test(x,pexp(500,1))
+# Large p-value indicates that there is an insufficient evididence to reject the 
+# null hypothesis and coclude that the two data come from the 
+# same distribution.
+```
+
+
+## Problem 3
+
+Write a function `my_rbinom(n, size, prob)`, that will generate `n` random values drawn from a binomial distribution with size = `size` and probability of success = `prob` by using the inverse CDF method. Use `runif()` as your sole source of randomness.
+
+Do not use any of R's binom functions. Do not use `dbinom`, `pbinom`, `qbinom()`, or `rbinom()`
+
+Use your function `my_rbinom()` to generate 200 values from a binomial distribution with n = 6, and p = 0.4.
+
+After generating 200 samples, make a side-by-side barchart that shows the empirical PMF of your data and the theoretic PMF according to the binomial distribution.
+
+Use a chi-squared goodness-of-fit test to see if the generated values fit the expected probabilities. Be sure to comment on the graph and results of the test.
+
+```{r}
+# write your code here
+# PDF
+# p(x=0) = choose(6,0)*(0.4)^0*(0.6)^6 = 0.046656
+# p(x=1) = choose(6,1)*(0.4)^1*(0.6)^5 = 0.186624
+# p(x=2) = choose(6,2)*(0.4)^2*(0.6)^4 = 0.31104
+# p(x=3) = choose(6,3)*(0.4)^3*(0.6)^3 = 0.276480
+# p(x=4) = choose(6,4)*(0.4)^4*(0.6)^2 = 0.138240
+# p(x=5) = choose(6,5)*(0.4)^5*(0.6)^1 = 0.036864
+# p(x=6) = choose(6,6)*(0.4)^6*(0.6)^0 = 0.004096
+
+p <- c(0.046656,0.186624,0.31104,0.276480,0.138240,0.036864,0.004096)
+# CDF
+(cdf <- cumsum(p))
+
+my_binom <- function(n,size,prob){
+        c0 <- choose(6,0)*(prob)^0*(1-prob)^6
+        c1 <- choose(6,1)*(prob)^1*(1-prob)^5
+        c2 <- choose(6,2)*(prob)^2*(1-prob)^4
+        c3 <- choose(6,3)*(prob)^3*(1-prob)^3
+        c4 <- choose(6,4)*(prob)^4*(1-prob)^2
+        c5 <- choose(6,5)*(prob)^5*(1-prob)^1
+        c6 <- choose(6,6)*(prob)^6*(1-prob)^0
+        cd <- c(c0,c1,c2,c3,c4,c5,c6)
+        cumcd <- cumsum(cd)
+        q <- c()
+        ran <- runif(n, min = 0, max = 1)
+        for(i in 1:n){
+                if(cumcd[1] < ran[i] && ran[i] <= cumcd[2]){
+                        q[i] = 1
+                }else if (cumcd[2] < ran[i]  && ran[i] <= cumcd[3]){
+                        q[i] = 2
+                }else if (cumcd[3] < ran[i] && ran[i] <= cumcd[4]){
+                        q[i] = 3
+                }else if (cumcd[4] < ran[i] && ran[i] <= cumcd[5]){
+                        q[i] = 4
+                }else if (cumcd[5] < ran[i] && ran[i] <= cumcd[6]){
+                        q[i] = 5
+                }else if (cumcd[6] < ran[i] && ran[i] <= cumcd[7]){
+                        q[i] = 6
+                }else {
+                        q[i] = 0
+                }
+        }
+        return(q)
+}
+# random generationa and collapse 6 and 7
+set.seed(1234)
+my_samp <- my_binom(200,6,0.4)
+th_prob <- rbinom(200, 6, 0.4) 
+
+# Side by side bar plot
+my_data <- cbind(my_samp,"emp")
+theo_data <- cbind(th_prob,"theo")
+df123 <- rbind(my_data,theo_data)
+df123 <- as.data.frame(df123)
+
+data_tb <- table(df123$my_samp, df123$V2)
+pro_data_tb <- data_tb/200
+pro_data_tb <- matrix(unlist(t(pro_data_tb)), byrow=F, 2, 7)
+colnames(pro_data_tb) <- 0:6
+rownames(pro_data_tb) <- c("empirical","theoretical")
+
+barplot(pro_data_tb,beside = T,
+        xlab = "# of success",ylab = "Probability",col = c("red","blue"),main = "Side by Side barplot")
+legend("topright", lty=1:2, cex=0.7,
+       legend = c("Empirical", "Theoretical"), fill = c("red", "blue"))
+
+# Chisq.test
+(bar <- table(my_samp))
+inti <- as.integer(bar)
+inti[6] <- inti[6] + inti[7]
+inti <- inti[-7]
+inti <- as.table(inti)
+names(inti) <- c("0","1","2","3","4","5 or 6")
+(inti)
+prop_inti <- prop.table(inti)
+
+tb <- table(th_prob)
+inti2 <- as.integer(tb)
+inti2[6] <- inti2[6] + inti2[7]
+inti2 <- inti2[-7]
+names(inti2) <- c("0","1","2","3","4","5 or 6")
+(inti2)
+
+chisq.test(inti,p=prop.table(inti2))
+# p > 0.05
+# p-value is large indicates that there is an insufficient evidence to reject the
+# null hypothesis. We conclude that our sample data are consistent with a specified 
+# distribution.
+```
+
+
+## Problem 4
+
+Let $f(x)$ and $g(x)$ be the target and candidate (proposal) distributions, respectively, in acceptance-rejection sampling. Find the optimal constant M that maximizes the acceptance rates for the following designs.
+
+$f(x) = \frac{1}{2} \sin(x)$ for $0 \le x \le \pi$
+
+$g(x) = \mbox{Unif}(0, \pi)$
+
+#### Answer: M is pi/2
+#### M * 1/pi = 1/2
+#### M = pi/2
+
+Implement the rejection sampling design, using `runif(n, 0, pi)` as your source of randomness. Generate 500 samples.
+
+
+```{r}
+M <- pi/2
+set.seed(1234)
+a <- runif(500,0,pi)
+b <- runif(500,0,1)
+# target
+tar <- function(x){
+        p <- c()
+        for(i in 1:length(x)){
+                p[i] <- 0.5 * sin(x[i])
+        }
+        return(p)
+}
+# propose
+pro <- rep(1/pi,500)
+
+para <- function(x){
+        return(tar(x)/(M*pro))
+}
+
+acc <- function(x){
+        rati <- para(a)
+        return(x <= rati)
+}
+c <- acc(b)
+accepted <-  b[c]
+length(accepted)
+(acceptance_rate <- 100*(length(accepted)/500))
+
+hist(a[c],main = "Histogram",xlab = "x",freq = F)
+plot(density(a[c]),main = "Kernel Desity Plot")
+
+```
+
+
+What is your acceptance rate?
+
+Create a histogram of your generated (accepted) sample.
+
+Plot a kernel density of the resulting (accepted) sample.
+
+## Problem 5
+
+Use rejection sampling to generate samples from the normal distribution, by using the folded-normal distribution method discussed in class.
+
+The standard normal distribution has the pdf:
+
+$$f(z) = \frac{1}{\sqrt{2\pi}} \exp{(-z^2/2)} \mbox{,   for } z \in (-\infty, \infty)$$
+
+The target distribution f(x) will be the positive half of the standard normal distribution, which will have PDF:
+
+$$f(x) = 2 \times \frac{1}{\sqrt{2\pi}} \exp{(-x^2/2)}\mbox{,   for } x \ge 0$$
+
+Use an exponential distribution with lambda = 1 as your trial (proposal) distribution.
+
+$$g(x) = e^{-x} \mbox{,   for } x \ge 0$$
+
+Find the optimal constant M that maximizes the acceptance rates for the rejection sampling design.
+
+Implement the rejection sampling design as discussed in class.
+
+- Use `runif` and inverse CDF to get a proposal value $X$ from the exponential distribution.
+- Calculate the ratio: $\frac{f(X)}{M \times g(X)}$
+- Use `runif` to generate $U$ to decide whether to accept or reject the proposed $X$.
+- keep the accepted $X$
+- Use `runif` to generate $S$ to decide whether the accepted $X$ will be positive or negative with probably 0.5.
+
+Use the above algorithm to generate a vector of 200 random values from the normal distribution.
+
+Create a histogram of your generated sample.
+
+Create a QQ-norm plot.
+
+```{r}
+# Find the optimal constant M
+set.seed(1234)
+s <- seq(-0.05,3, by  = 0.001)
+density <- function(x) ifelse(x < 0,0,2*(1/sqrt(2*pi))*exp(-((x^2)/2)))
+propose <- function(x) ifelse(x < 0,0,exp(-x))
+
+(M <- max(density(s)/propose(s),na.rm = TRUE))
+
+rejec_s <- function(x){
+        accept <- c()
+        for(i in 1:x){
+        u1 <- runif(1)
+        j <- -log(u1) 
+        if(u1 <= (2*(1/sqrt(2*pi))*exp(-((j^2)/2)))/(M*j)){
+                accept[i] <- j
+        }else{
+               accept[i] <- NA
+        }
+        }
+        return(accept)
+}
+accepted <- rejec_s(500)
+r_accept <- na.omit(accepted)
+r_accept <- r_accept[1:200]
+length(r_accept)
+
+s <- runif(length(r_accept),0,1)
+s_minus <- s < 0.5 
+r_accept[s_minus] = - r_accept[s_minus]
+
+hist(r_accept)
+qqnorm(r_accept)
+
+
+
+```
+

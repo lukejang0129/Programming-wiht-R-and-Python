@@ -1,0 +1,173 @@
+---
+title: "Stat102C_HW_6"
+author: "Junhyuk Jang"
+date: "6/6/2018"
+output: html_document
+---
+```{r}
+#install.packages('SnowballC')
+
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Do not post or distribute without permission.
+
+## 
+
+The assignment is to code up the Gibbs sampler algorithm as described in the document "Gibbs Sampling for the Uninitiated"
+
+**The psuedo-code in section 2.5.4 will be very helpful.**
+
+The article describes using the algorithm for sentiment analysis: either classifying a document as having a positive or negative sentiment. 
+
+I have chosen to simply the task by using a set of 'documents' that contain a much smaller vocabulary. I took the text from two popular children's books: *Green Eggs and Ham* by Dr. Seuss, and *Go Dog, Go!* by P.D. Eastman. (They are also popular with my daughter.)
+
+I took the raw text of the book, and chopped each book into about 10 chunks. I'm calling each of these text chunks a "document." The algorithm will then take the unlabeled chunks and sort them into two groups based on text similarity.
+
+I have written the commands that create the corpus of "documents." The commands make use of the library `tm` (text mining) and `SnowballC` (truncating words to their roots).
+
+If you code it correctly, the algorithm should be able to do a decent job of classifying the documents despite the data being completely unlabeled.
+
+Keep track of the vector `L` (the document labels) after each iteration. We will want this to get a distribution of `L`. When you keep track of `L`, you will have a NxT matrix with a column for each document (N documents) and a row for each iteration (a total of T iterations).
+
+At the end, print out the vector `L` which shows the current classifications after the final iteration. Also print out the vectors theta_0 and theta_1. Keep in mind, these are just random draws from the posterior distribution, and will not necessarily be the values that maximize the posterior probability. They should, however, be drawn from regions of fairly high probability and reflect values that are close to the true values. (In our simple example, however, the vector L should correctly classify the documents.)
+
+After you have kept track of all the different `L` vectors that get sampled, discard the first handful of iterations until you see the vector `L` reaches stability. 
+
+Include any plots or other output if you feel they help show the success of the algorithm.
+
+Please do not print out the results of each iteration or do something that produces many lines of unnecessary output.
+
+
+```{r}
+setwd(" ⁨Users⁩ ▸ ⁨junhyukjang⁩ ▸ ⁨Desktop⁩ ▸ ⁨FROM OLD MAC⁩ ▸ ⁨FOLDERS FROM MAC⁩ ▸ ⁨UCLA_Academic⁩ ▸ ⁨Spring 2018⁩ ▸ ⁨Stat_102C⁩ ▸ ⁨HW⁩")
+## the following code is adapted from the page:
+## https://www.r-bloggers.com/text-mining-the-complete-works-of-william-shakespeare/
+
+library(tm)
+library(SnowballC)
+
+geah <- readLines("geah.txt")  # text of Green Eggs and Ham by Dr. Seuss
+gdg <- readLines("gdg.txt")    # text of Go Dog Go by P.D. Eastman
+corpus <- c(geah, gdg)
+
+doc.vec <- VectorSource(corpus)
+doc.corpus <- Corpus(doc.vec)
+# summary(doc.corpus)
+doc.corpus <- tm_map(doc.corpus, tolower) 
+doc.corpus <- tm_map(doc.corpus, removePunctuation) 
+doc.corpus <- tm_map(doc.corpus, removeNumbers)
+doc.corpus <- tm_map(doc.corpus, removeWords, stopwords("english"))  # removes very common English words
+doc.corpus <- tm_map(doc.corpus, stemDocument)  # stems words so that words like running, runs, runner just become run
+doc.corpus <- tm_map(doc.corpus, stripWhitespace)
+inspect(doc.corpus[4])  # resulting text for one 'document'
+inspect(doc.corpus[15])
+
+DTM <- DocumentTermMatrix(doc.corpus) # creates a matrix of the words and their frequencies in each document
+DTM
+inspect(DTM[1:10,1:10])
+
+word_counts <- as.matrix(DTM) # You can now use this as it shows the frequency of each word
+dim(word_counts) ## our corpus has 19 documents, and a total of 59 unique words
+head(word_counts) ## a visual inspection already shows some patterns in the word usage
+tail(word_counts)
+
+# initial parameters
+V = dim(word_counts)[2] # number of words in the vocabulary
+N = dim(word_counts)[1] # number of documents in the corpus
+gamma_pi_1 = 5 # hyper parameter for pi
+gamma_pi_0 = 5 # hyper parameter for pi
+gamma_theta = rep(1, V) # vector of hyper parameters for the vector theta
+
+library(MCMCpack)
+
+set.seed(1)
+# randomly initialize the label assignments
+pi <- rbeta(1, gamma_pi_0, gamma_pi_1)
+L <- rbinom(N, 1, pi)
+theta_0 <- rdirichlet(1, gamma_theta)
+theta_1 <- rdirichlet(1, gamma_theta)
+```
+
+
+```{r}
+## Write the code for the gibbs sampler here
+## it might take a long time to run
+p <- 0
+q <- 0
+c_0 <- NA
+c_1 <- NA
+N <- c_0 + c_1
+l <- matrix(rep(NA),nrow=500,ncol=19) 
+L_0 <- matrix(rep(NA),nrow=19, ncol=59)
+L_1 <- matrix(rep(NA),nrow=19, ncol=59)
+for(i in 1:nrow(l)){
+        l[i,] <-as.matrix(L)
+        { 
+             for(j in 1:19){
+                if(L[j] == "1"){
+                    p <- p + 1
+                        }
+                else if(L[j] == "0"){
+                        q <- q + 1
+                  }
+                        c_0 <- q
+                        c_1 <- p
+                        N <- c_0 + c_1
+        }
+                {
+                 for(k in 1:19){
+                  l_0 <- ((c_0 + gamma_pi_0 - 1) / (N + gamma_pi_0 + gamma_pi_1 - 1))*
+                          prod(theta_0^word_counts[k,])
+                  l_1 <- ((c_1 + gamma_pi_1 - 1) / (N + gamma_pi_0 + gamma_pi_1 - 1))*
+                          prod(theta_1^word_counts[k,])
+                  prob1 <- l_1 / (l_0 + l_1)
+                        L[k] <- rbinom(1,1,prob = prob1)
+                        if(L[k] == "1"){
+                                L_1[k,] <- as.numeric(word_counts[k,])
+                        }
+                        else if (L[k] == "0"){
+                                L_0[k,] <- as.numeric(word_counts[k,])
+                        }
+                 }
+            }
+                
+        }
+                 p <- 0
+                 q <- 0
+                 vector_c_1 <- colSums(L_1,na.rm = T)
+                 vector_c_0 <- colSums(L_0,na.rm = T)
+                 f0 <- gamma_theta + vector_c_0
+                 f1 <- gamma_theta + vector_c_1    
+                 theta_0 <- rdirichlet(1, f0)
+                 theta_1 <- rdirichlet(1, f1)
+}
+
+
+# current classifications after the final iteration
+l[500,]
+
+# theta_0
+theta_0
+
+# theta_1
+theta_1
+
+# Discard the first handful of iterations until you see the vector `L` reaches stability.
+head(l,10)
+# After 4 iteration it becomes stable. I will discard first four.
+l <- l[-c(1:4),]
+head(l)
+
+# histogram
+hist(l)
+
+# column means
+colMeans(l)
+```
+
