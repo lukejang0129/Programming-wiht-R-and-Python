@@ -1,0 +1,454 @@
+---
+title: "102A Homework 5 - Monopoly"
+author: "Junhyuk Jang"
+date: "Sep 13 2017"
+output: html_document
+---
+
+
+## Monopoly Board game simulation
+
+### For this homework assignment, you will create a simulation of the classic board game, Monopoly. The goal is to find out which spaces on the board get landed on the most.
+
+You will not simulate the entire game. You will simulate only the movement of pieces, and will keep track of which squares the pieces land on. If you have never played Monopoly before, I recommend watching a few videos on the topic. <https://www.youtube.com/watch?v=4Hfe97Q5kuI>
+
+You can also familiarize yourself with the game board. (Taken from Amazon's product page.)
+
+<http://ecx.images-amazon.com/images/I/81oC5pYhh2L._SL1500_.jpg>
+
+Official rules <http://www.hasbro.com/common/instruct/00009.pdf>
+
+## Rules for movement
+
+The Monopoly Board is effectively a circle with 40 spaces on which a player can land. Players move from space to space around the board in a circle (square).
+
+The number of spaces a player moves is determined by the roll of 2 dice. Most often, the player will roll the dice, land on a space, and end his turn there. If this were the entire game, the spaces would have a uniform distribution.
+
+There are, however, several exceptions which provide the primary source of variation in space landing
+
+### Go to Jail
+
+One space, "Go to Jail" sends players directly to jail (there is a jail space on the board). This space never counts as having been 'landed upon.' As soon as the player 'lands' here, he is immediately sent to jail, and the jail space gets counted as landed upon. This is the only space on the game board that moves a player's piece. The count of how often this space is landed on will always be 0.
+
+### Rolling Doubles
+
+If a player rolls doubles (two of the same number), the player moves his piece, and then gets to roll the dice again for another move. However, if a player rolls doubles three times in a row, he is sent directly to jail. (The third space that the player would have 'landed on' does not count, but the jail space gets counted as landed on.)
+
+### Card Decks: Chance and Community Chest
+
+A player can land on a "Chance" or "Community Chest" space. When a player lands on these spaces, he draws a card from the respective deck and follows its instructions. The instructions will sometimes give money to or take money from the player with no change in the player's position on the board. Other times, the card will instruct the player to move to another space on the board. The list of cards that can be drawn from each deck is provided below.
+
+There are nine cards in the Chance deck that move the player's token. There are two cards in the Community Chest deck that move the player's token. All other cards do not move the player's token. For the sake of this simulation, you only need to worry about the cards that move the tokens.
+
+A card may say 'move to the nearest railroad' or 'move to the nearest utility' or even 'go to property xxx'. In these cases, the player always moves forward. So if a player is on 'Oriental Avenue,' the nearest railroad is 'Pennsylvania Railroad' and NOT 'Reading Railroad.'
+
+The Chance and Community Chest get counted as "landed on" only if the player ends the turn on the Chance or Community Chest space. So if the card moves the token to another space, only the final space is counted as 'landed on.' The Chance or Community Chest space counts as having been landed only if the card does not move the player to another space.
+
+### Jail
+
+Jail is the most complicated aspect of this simulation.
+
+If a player lands on space 11 (Jail), he is not in Jail. He is 'just visiting.' His play continues on as normal.
+
+A player can be placed in jail in several ways: he rolls doubles three times in a row; he lands on the "go to jail" space; he draws a card that sends hims to jail.
+
+When in jail, the player has the option to pay a fee to 'get out,' or he can choose not to pay the fee. If he pays the fee, he is out of jail, and his play continues normally as before. If he chooses not to pay the fee, he rolls the dice. If he rolls doubles on the dice, he gets out of jail and moves the number of spaces the dice show. However, even though he rolled doubles, he does NOT roll again. He takes his move out of jail and his turn ends. If he does not roll doubles, he stays in jail.
+
+A player cannot stay in jail for more than three turns. On his third turn in jail, he rolls the dice and moves the number of spaces the dice show no matter what. If they are doubles, he moves those spaces for free. If he does not roll doubles, he moves those spaces, but must also pay a fee.
+
+Play then continues as normal.
+
+More rules on jail: <http://monopoly.wikia.com/wiki/Jail>
+
+For this simulation, each time a player ends his turn in Jail, a tally will be counted as having been 'landed upon.'
+
+We will simulate a 'long stay' strategy for Jail. This effectively means that the player will never choose to pay the fee to get out jail unless forced to do so. Effectively, this means that he will roll the dice and only leave jail if he gets doubles or it is his third turn in jail.
+
+## Your Simulation
+
+Your task is to run 1,000 simulations of a two-player game that lasts 150 turns. This is a total of over 6 hundred thousand dice rolls - 1000 games x 150 turns x 2 players x 2 dice + additional rolls if the player gets doubles.
+
+Your task is to keep track of where the players land. We ultimately want to build a distribution showing which spaces are most likely to be landed upon. Advance the tokens around the board according to the rules. Keep in mind the special situations involving the cards, jail, and rolling doubles. After 150 turns, reset the game and start over. Simulate 1000 games.
+
+#### Your final output should be a table of the spaces on the board, how many times the space was landed upon, and the relative frequency of landing on that space. Arrange the table in descending order of frequency of landing.
+
+You do not have to simulate or track money at all in this simulation.
+
+For your convenience, I have created the necessary data frames for the game board, and the two decks of cards.
+
+```{r}
+gameboard <- data.frame(space = 1:40, title = c("Go" , "Mediterranean Avenue" , "Community Chest" , "Baltic Avenue" , "Income Tax" , "Reading Railroad" , "Oriental Avenue" , "Chance" , "Vermont Avenue" , "Connecticut Avenue" , "Jail" , "St. Charles Place" , "Electric Company" , "States Avenue" , "Virginia Avenue" , "Pennsylvania Railroad" , "St. James Place" , "Community Chest" , "Tennessee Avenue" , "New York Avenue" , "Free Parking" , "Kentucky Avenue" , "Chance" , "Indiana Avenue" , "Illinois Avenue" , "B & O Railroad" , "Atlantic Avenue" , "Ventnor Avenue" , "Water Works" , "Marvin Gardens" , "Go to jail" , "Pacific Avenue" , "North Carolina Avenue" , "Community Chest" , "Pennsylvania Avenue" , "Short Line Railroad" , "Chance" , "Park Place" , "Luxury Tax" , "Boardwalk"))
+
+chancedeck <- data.frame(index = 1:15, card = c("Advance to Go" , "Advance to Illinois Ave." , "Advance to St. Charles Place" , "Advance token to nearest Utility" , "Advance token to the nearest Railroad" , "Take a ride on the Reading Railroad" , "Take a walk on the Boardwalk" , "Go to Jail" , "Go Back 3 Spaces" , "Bank pays you dividend of $50" , "Get out of Jail Free" , "Make general repairs on all your property" , "Pay poor tax of $15" , "You have been elected Chairman of the Board" , "Your building loan matures"))
+
+communitydeck <- data.frame(index = 1:16, card = c("Advance to Go" , "Go to Jail" , "Bank error in your favor. Collect $200" , "Doctor's fees Pay $50" , "From sale of stock you get $45" , "Get Out of Jail Free" , "Grand Opera Night Opening" , "Xmas Fund matures" , "Income tax refund" , "Life insurance matures. Collect $100" , "Pay hospital fees of $100" , "Pay school tax of $150" , "Receive for services $25" , "You are assessed for street repairs" , "You have won second prize in a beauty contest" , "You inherit $100"))
+```
+
+You can 'hard code' the functions that handle the decks. In other words, you can write something along the lines of 
+
+```c
+## for chance deck
+...
+    if(carddrawn == 1) 
+        code changes player position to space 1  # advance to go
+    if(carddrawn == 2) 
+        code changes player position to space 25 # advance to Illinois avenue
+    # etc.
+...
+```
+
+
+### Tips
+
+At first blush, the task may seem overwhelming.
+
+- Break the task into smaller manageable parts.
+- Start with a simulation that moves pieces around the board and keeps track of where they land. (I've done this part for you in my example code.)
+- Then add complexity one part at a time.
+- Add something so landing on "Go to jail" sends the player to jail.
+- Add functions for the Chance and Community Chest decks. Keep in mind that some cards have no effect on player movement, while other cards do.
+- Add something to allow players to move again after doubles.
+- Finally implement the Jail. You'll need to keep track of whether the player is actually in jail or not, how many turns the player has been in jail, and the rules for getting out.
+
+### Requirements for grading
+
+0. Do NOT print the verbose version for all of 1000 games. 
+1. Your final output should be a table of the spaces on the board, how many times the space was landed upon, and the relative frequency of landing on that space. Print this table two times. First, arrange the table in descending order of frequency of landing. Second, arrange the table in the order of the spaces on the board.
+    a. While we do not expect your results to match perfectly with ours, we will check for certain outcomes.
+    b. For example, "Go to Jail" should have a frequency of 0.
+    c. "Jail" should be the most frequently landed on space.
+    d. You will be graded on whether your results table matches the established trends of the board.
+2. You will also be graded on the functions that you have implemented in your code.
+    a. In your code, create sections to clearly show the functionality that you are implementing.
+    b. You can achieve this in R studio by using the menu Code > Insert Section 
+    c. If you are implementing multiple functionalities in one function of the code, that is fine, but be sure to clearly indicate the different sections that are implemented in the code.
+
+```c
+# dice --------------------------------------------------------------------
+
+dice <- function()...
+
+# drawing chance card -----------------------------------------------------
+
+etc. etc.
+```
+3. We will check for the following sections. You can have more, but proper implementation of these sections is required for full credit. Because your code will be quite long, it is *VERY IMPORTANT* you *CLEARLY* mark these sections for the grader.
+    a. drawing chance card
+    b. drawing community chest card
+    c. landing on "go to jail"
+    d. roll again for rolling doubles
+    e. going to jail for rolling three doubles
+    f. jail functionality
+    
+4. To see if you fully implemented the code correctly, I am giving a set of rolls that I want everyone to use for 20 turns of one player. 
+If you follow, the rules, where you land should be deterministic. On the 18th turn, you will land on a chance space. This will be your first random event (with my seed and implementation, my first chance card sends me to jail). We'll check to see if your code follows the monopoly rules for these 20 turns. Be sure to print out your `space_tracking$tally` vector for verification.
+
+### Good luck!
+
+I know this is a tough assignment. Like everything else in life, sometimes you have to prioritize other things (eg. health, sleep, sanity, etc.) over the task at hand.
+
+If you are unable to implement all parts of the solution, that is also okay. I cannot give you full credit, but please indicate what you were able to implement and what you were not able to implement. You will be graded on what you were able to complete. 
+
+You are encouraged to talk with other students currently enrolled in Stats 102A. You cannot copy another student's code. You are not allowed to seek out past solutions from previous classes.
+
+Best wishes!
+
+```{r, error = TRUE}
+library(dplyr)
+dice<-function(verbose=FALSE)
+{
+  faces<-sample(1:6,2,replace = TRUE)
+  if(faces[1]==faces[2]) doubles=TRUE
+  else doubles=FALSE
+  movement=sum(faces)
+  if(verbose) cat("Rolled:",faces[1],faces[2],"\n")
+  return(list(faces=faces,doubles=doubles,movement=movement))
+}
+
+## manual dice --------------------------------------------------
+Dice = setRefClass("Dice", 
+                   fields = list(
+                     rolls = "numeric",
+                     pos = "numeric",
+                     verbose = "logical"
+                   ), 
+                   methods = list(
+                     roll = function() {
+                       faces = rolls[pos + seq_len(2)]
+                       pos <<- pos + 2
+                       if(faces[1] == faces[2]) doubles = TRUE
+                       else doubles = FALSE
+                       movement = sum(faces)
+                       if(verbose) cat("Rolled:", faces[1], faces[2], "\n")
+                       return(list(faces=faces, doubles=doubles, movement=movement))
+                     }
+                   )
+)
+
+
+# Player Reference class -----------------------------------------------------
+player <- setRefClass("player", 
+  fields = list(
+    pos = "numeric",      # position on the board
+    verbose = "logical",
+    jail = "numeric",
+    double_count = "numeric",
+    in_jail = "logical"
+  ), 
+  methods = list(
+    move_n = function(n) {
+      if(verbose) cat("Player at:", pos)
+      if(verbose) cat(" Player moves:", n)
+      pos <<- pos + n
+      if (pos == 31) {
+        pos <<- 11
+        jail_turn_n(1)
+        }
+      if(pos > 40) pos <<- pos - 40
+      if(verbose) cat(" Player now at:", pos,"\n")
+      if(verbose) cat("Tally at ", pos, ": ", as.character(gameboard[pos,2]), "\n",sep = "")
+    },
+    go_to_space_n = function(n){
+      if(verbose) cat("Player at:", pos,".")
+      pos <<- n
+      if(pos==31) {
+        pos <<- 11
+        jail_turn_n(1)
+        }
+      if(verbose) cat(" Player now at:", pos,".\n")
+      if(verbose) cat("Tally at ", pos, ": ", as.character(gameboard[pos,2]), "\n",sep = "")
+    },
+    jail_turn_n = function(n){
+      jail <<- n
+    },
+    go_jail = function(){
+      go_to_space_n(11)
+      jail_turn_n(1)
+      in_jail <<-  FALSE
+    },
+    in_jailT = function(){
+      in_jail <<- TRUE
+    },
+    in_jailF = function(){
+      in_jail <<- FALSE
+    }
+  )
+)
+
+
+
+player1<- player$new(pos=1,verbose=TRUE)
+player2<- player$new(pos=1,verbose=TRUE)
+
+# Space Tracking Reference Class ------------------------------------------
+tracking <- setRefClass("tracking",
+  fields = list(
+    tally = "numeric"
+  ),
+  methods = list(
+    increase_count = function(n){
+      tally[n] <<- tally[n] + 1
+    }
+  )
+)
+
+
+community <- c(3, 18, 34)
+chance <- c(8, 23, 37)
+railroad <- c(6, 16, 26, 36)
+
+
+# Chance function ------------------------------------------------------
+chance_fun<- function(player){
+  card<-sample(1:15,1)
+  if(card==1)
+  {
+    player$go_to_space_n(1)
+  }
+  if(card==2)
+  {
+    player$go_to_space_n(25)
+  }
+  if(card==3)
+  {
+    player$go_to_space_n(12)
+  }
+  if(card==4)
+  {
+    if(player$pos > 29)
+    {
+      player$go_to_space_n(13)
+    }else {player$go_to_space_n(29)}
+  }
+  if(card==5)
+  {
+    if(player$pos>36)
+    {
+      player$go_to_space_n(railroad[1])
+    }else{
+      near_railroad<- min(which(railroad>player$pos))
+      player$go_to_space_n(railroad[near_railroad])
+    }
+  }
+  if(card==6)
+  {
+    player$go_to_space_n(railroad[1])
+  }
+  if(card==7)
+  {
+    player$go_to_space_n(40)
+  }
+  if(card==8)
+  {
+    player$go_to_space_n(11)
+    player$go_jail()
+  }
+  if(card==9)
+  {
+    player$go_to_space_n(player$pos-3)
+  }
+}
+
+# community chest card ------------------------------------------------------
+com_chest <- function(player){
+    card<- sample(1:16,1,replace = TRUE)
+    if(card==1){player$move_n(1)}
+    if(card==2){
+      player$go_to_space_n(11)
+      player$go_jail
+      }
+}
+
+# take turn function ---------------------------------------------------------
+taketurn <- function(player, tracking, verbose){
+  roll <- dice()
+  if(player$jail == 0){
+    if(!roll$doubles){
+      player$move_n(roll$movement)
+      if(player$pos %in% chance){chance_fun(player)}
+      if(player$pos %in% community){com_chest(player)}
+      tracking$increase_count(player$pos)
+    }
+    
+    # Roll again if roll double  -----------------------------------------------------
+    if(roll$doubles && player$jail == 0){
+      player$move_n(roll$movement)
+      if(player$pos %in% chance){chance_fun(player)}
+      if(player$pos %in% community){com_chest(player)}
+      tracking$increase_count(player$pos)
+      if(roll$doubles!=0 && player$jail == 0){
+        roll2 <- dice()
+        if(!roll2$doubles){
+          player$move_n(roll2$movement)
+          if(player$pos %in% chance){chance_fun(player)}
+          if(player$pos %in% community){com_chest(player)}
+          tracking$increase_count(player$pos)
+        }
+        if(roll2$doubles && player$jail==0){
+          player$move_n(roll2$movement)
+          if(player$pos %in% chance){chance_fun(player)}
+          if(player$pos %in% community){com_chest(player)}
+          tracking$increase_count(player$pos)
+          roll3 <- dice()
+          if(!roll3$doubles){
+            player$move_n(roll3$movement)
+            if(player$pos %in% chance){chance_fun(player)}
+            if(player$pos %in% community){com_chest(player)}
+            tracking$increase_count(player$pos)
+          }
+          
+          # roll doubles three time, and jail ----------------------------
+          if(roll3$doubles){
+            player$go_to_space_n(11)
+            tracking$increase_count(11)
+            player$go_jail()
+          }
+        }
+      }
+    }
+  }
+  
+  # jail functionality -----------------------------------------------------
+  if(player$jail == 1 && player$in_jail == TRUE){
+    if(!roll$doubles){
+      if(verbose) cat("Stay in jail","\n")
+      player$go_to_space_n(11)
+      player$jail_turn_n(2)
+      player$in_jailF()
+      tracking$increase_count(11)
+    }
+    if(roll$doubles){
+      player$in_jailF()
+      player$move_n(roll$movement)
+      tracking$increase_count(player$pos)
+      player$jail_turn_n(0)
+      if(player$pos %in% chance){chance_fun(player)}
+      if(player$pos %in% community){com_chest(player)}
+    }
+  }
+  
+  if(player$jail == 2 && player$in_jail ==TRUE){
+    if(!roll$doubles){
+      if(verbose) cat("Stay in jail")
+      player$go_to_space_n(11)
+      player$jail_turn_n(0)
+      player$in_jailF()
+      tracking$increase_count(11)
+    }
+    if(roll$doubles){
+      player$move_n(roll$movement)
+      tracking$increase_count(player$pos)
+      player$jail_turn_n(0)
+      player$in_jailF()
+      if(player$pos %in% chance){chance_fun(player)}
+      if(player$pos %in% community){com_chest(player)}
+      
+    }
+  }
+  if(player$jail == 1){
+    player$in_jailT()
+  }
+  if(player$jail == 2){
+    player$in_jailT()
+  }
+}
+
+
+
+# Running the simulation --------------------------------------------------
+space_tracking <- tracking$new(tally = rep(0,40))
+
+for(i in 1:1000){ 
+  player1 <- player$new(pos = 1, verbose = FALSE, jail=0, in_jail=FALSE)  
+  player2 <- player$new(pos = 1, verbose = FALSE, jail=0, in_jail=FALSE)
+  for(i in 1:150){ 
+    if(player1$verbose) cat("Player 1 turn\n")
+    taketurn(player1, space_tracking, FALSE)  
+    if(player2$verbose) cat("Player 2 turn\n")
+    taketurn(player2, space_tracking, FALSE)  
+  }
+}
+
+final_table<- cbind(gameboard, Frequ=space_tracking$tally)
+final_table<- cbind(final_table, Rel_Frequ= final_table$Frequ/sum(final_table$Frequ))
+# Arrange the table in the order of the spaces on the board.
+final_table
+
+# arrange the table in descending order of frequency of landing.
+arrange(final_table, desc(Rel_Frequ))
+
+## Deterministic Dice
+# On the 18th turn, you will land on a chance space.
+set.seed(10)
+setdice <- Dice$new(rolls = c(6, 4, 5, 3, 3, 5, 6, 2, 5, 4, 4, 1, 2, 6, 4, 4, 4, 4, 2, 2, 
+                              4, 3, 4, 4, 1, 4, 3, 4, 1, 2, 3, 6, 5, 4, 5, 5, 1, 2, 5, 4, 
+                              3, 3, 1, 1, 2, 1, 1, 3),
+                    pos = 0, verbose = TRUE)
+dice <- function() setdice$roll()
+space_tracking <- tracking$new(tally = rep(0,40))
+player1 <- player$new(pos = 1, verbose = TRUE, jail=0)  
+for(i in 1:20){
+  cat("\n## Turn", i,"\n")
+  taketurn(player1, space_tracking, TRUE) 
+}
+# On the 18th turn, I land on a chance space.

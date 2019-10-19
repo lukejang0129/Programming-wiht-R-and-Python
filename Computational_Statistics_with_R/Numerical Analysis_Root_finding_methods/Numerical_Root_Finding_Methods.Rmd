@@ -1,0 +1,428 @@
+---
+title: "Stats 102A (Computational Statistics) - Homework 4"
+author: "Put Your Name Here"
+date: "Summer 2017"
+output: html_document
+---
+
+1. __Read__
+    a. SPURS:
+        * Chapter 9
+        * Chapter 10 
+        * Chapter 12 sections 1-2
+
+2. __An IEEE 754 Mini-Floating Point number [15 points, 3pts each part]___
+
+In class, I demonstrated the use of a mini-floating point number system using 8 bits. In my class demo, I used 1 bit for the sign, 3 bits for the exponent, and 4 bits for the mantissa. For this problem, imagine I had used 1 bit for the sign, 4 bits for the exponent, and 3 bits for the mantissa.
+
+```c
+0 0000 000 # would now represent the decimal value 0
+```
+
+Answer the following questions under this new system.
+
+a. __What is the bias that would be used for the exponent?__
+2^(4-1) - 1 = 7
+Write your answer here
+
+b. __How would the value 5.5 be stored in this system?__
+5.5 = 2^2 + 2^0 + 2^-1 = (2^0+2^-2+2^-3)*2^2
+0|1001|011
+answer
+
+c. __What decimal value would the following bit sequence represent `0 1010 100`?__
+answer
+12
+d. __What is the smallest positive non-zero value that can be expressed?__
+0|0000|000 = 0
+answer
+the smallest positive non-zero value = 0 0000 001 = 2^-9 = 0.001953125
+
+e. __What is the largest finite value that can be expressed with this sytem?__
+0|1110|111
+answer
+1.111 * 2^(14-7) = 1.111 * 2^7 = 240
+
+3. __Root Finding with Fixed Point Iteration [15 points, 3 points each part]__
+
+Modified version of SPURS chapter 10, section 6, exercise 4.
+
+I have written my own version of fixedpoint_show, which uses ggplot to produce the graphs. The code performs fixed point iteration to find a solution to $f(x) = x$.
+
+I have modified it so that it works better for R Markdown output. Instead of prompting the user to continue, it will perform a number of iterations as specified by the `iter` value in the parameters. I encourage you to read through the code line by line and make sure you understand it.
+
+* Do part (a) using x0 = 1
+* Do part (a) using x0 = 3
+* Do part (b) using x0 = 2 
+* Do part (c) using x0 = 2 
+* Do part (d) using x0 = 2, no more than 6 iterations
+
+
+```{r, error = TRUE}
+library(ggplot2)
+fixedpoint_show <- function(ftn, x0, iter = 5){
+  # applies fixed-point method to find x such that ftn(x) == x
+
+  # df_points is used to track each update
+  # it will be used to plot the line segments showing each update
+  # each line segment connects the points (x1,y1) to (x2,y2)
+  df_points <- data.frame(x1=numeric(0),y1=numeric(0),x2=numeric(0),y2=numeric(0))
+  
+  xnew <- x0
+  cat("Starting value is:", xnew, "\n")
+  
+  # iterate the fixed point algorithm
+  for(i in 1:iter){
+    xold <- xnew
+    xnew <- ftn(xold)
+    cat("Next value of x is:", xnew, "\n")
+    
+    df_points[2*i-1,] <- c(xold, xold, xold, xnew) # vertical (x1 = x2)
+    df_points[2*i,] <- c(xold, xnew, xnew, xnew)   # horizontal (y1 = y2)
+  }
+
+  ### use ggplot to plot the function and the segments for each iteration
+  # determine the limits to use
+  x_start <- min(df_points$x1, df_points$x2, x0 - .1) # start is the min of these values
+  x_end <- max(df_points$x1, df_points$x2, x0 + .1)   # end is the max of these values
+  
+  x <- seq(x_start, x_end, length.out = 200)
+  fx <- rep(NA, length(x))
+  for (i in seq_along(x)) {
+    fx[i] <- ftn(x[i])
+  }
+  function_data <- data.frame(x, fx)
+  
+  p <- ggplot(function_data, aes(x = x, y = fx)) + geom_line(colour = "blue", size=1) +  # plot the function
+    geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), data = df_points) + # plot the segments, we specify that a different data frame is used here
+    geom_abline(intercept = 0, slope = 1, col = "red") # plot the line y = x
+  
+  print(p) # produce the plot
+  return(xnew)
+}
+
+
+## Part a, x0 = 1
+f <- function(x) cos(x)
+fixedpoint_show(f, 1, iter=10)
+
+f(1)
+
+## Part a, x0 = 3
+fixedpoint_show(f, 3, iter = 10)
+
+## Part b, x0 = 2
+f <- function(x) exp(exp(-x))
+fixedpoint_show(f, 2, iter = 10)
+
+## Part c, x0 = 2
+f <- function(x) x-log(x)+exp(-x)
+fixedpoint_show(f, 2, iter = 10)
+
+## Paer d, x0 = 2
+f <- function(x) x+log(x)-exp(-x)
+fixedpoint_show(f, 2, iter = 6)
+
+
+```
+
+
+4. __Root Finding with Newton Raphson [25 points, 13 points for writing the code, 3 each for parts a-d]__
+
+Modified version of SPURS chapter 10, section 6, exercise 5.
+
+For this problem, we are implementing the Newton Raphson method for root finding. 
+
+I've written some of the code for you. You'll need to write the rest of the code so it can use ggplot to show the function and lines for each iteration.
+
+You'll probably want to refer to the code for the fixed point iteration. Also pay attention to the example used in the textbook for how the function should be programmed. The function takes a value of x and returns two values: the value of the function, and the value of the derivative at that point. Refer to section 10.3, especially page 176.
+
+Once you have it running, produce graphs for:
+
+* part (a) using x0 = 3
+* part (b) using x0 = 2
+* part (c) using x0 = 0
+* part (d) using x0 = 1.1
+
+
+```{r, error = TRUE}
+newtonraphson_show <- function(ftn, x0, iter = 5) {
+  # applies Newton-Raphson to find x such that ftn(x)[1] == 0
+  # ftn is a function of x. it returns two values, f(x) and f'(x)
+  # x0 is the starting point
+  # df_points is used to track each update
+  df_points <- data.frame(x1=numeric(0),y1=numeric(0),x2=numeric(0),y2=numeric(0))
+  
+  xnew <- x0
+  cat("Starting value is:", xnew, "\n")
+  
+  # the algorithm
+  for(i in 1:iter){
+    xold <- xnew
+    f_xold <- ftn(xold)
+    xnew <- xold - f_xold[1]/f_xold[2]
+    cat("Next x value:", xnew, "\n")
+    
+    # the line segments. You will need to replace the NAs with the appropriate values
+    df_points[2*i-1,] <- c(xold, 0, xold, f_xold[1]) # vertical segment 
+    df_points[2*i,] <- c(xold, f_xold[1], xnew, 0)   # tangent segment 
+  }
+  x_start <-min(df_points$x1,df_points$x2,x0-.1)
+  x_end <-max(df_points$x1,df_points$x2,x0+.1)
+  x <- seq(x_start,x_end,length.out=200)
+  fx<-rep(NA,length(x))
+  for(i in seq_along(x)){
+    fx[i]<-ftn(x[i])[1]
+  }
+  function_data <- data.frame(x,fx)
+  
+  p<-ggplot(function_data,aes(x=x,y=fx))+geom_line(colour="blue")+geom_segment(aes(x=x1,y=y1,xend=x2,yend=y2),data=df_points)+geom_abline(intercept = 0,slope=0,col="red")
+  print(p)
+  return(xnew)
+}
+
+
+## Part (a) using x0 = 3
+# example of how your functions could be written
+a <- function(x){
+  f <- cos(x) - x   # f(x)
+  d <- -sin(x) - 1  # f'(x)
+  return(c(f,d))
+} 
+a(3)
+a(3)[1]
+a(3)[1]
+
+newtonraphson_show(a, 3, iter = 8)
+
+## part (b) using x0 = 2
+b <- function(x){
+  f <- log(x) - exp(-x) #f(x)
+  d <- 1/x + exp(-x) #f'(x)
+  return(c(f,d))
+}
+newtonraphson_show(b, 2, iter = 10)
+
+## part (c) using x0 = 0
+cc <- function(x){
+  f <- x^3 - x - 3 #f(x)
+  d <- 3*(x^2) - 1 #f'(x)
+  return(c(f,d))
+}
+newtonraphson_show(cc, 0, iter = 10)
+
+## part (d) using x0 = 1.1
+dd <- function(x){
+  f <- x^3 - 7*x^2 +14*x-8 #f(x)
+  d <- 3*(x^2) - 14*x+14 #f'(x)
+  return(c(f,d))
+}
+newtonraphson_show(dd, 1.1, iter = 10)
+
+```
+
+5. __Root Finding with Secant Method [20 points for completing the code and graph]__
+
+Modified version of SPURS chapter 10, section 6, exercise 6.
+
+Implement the secant method for root finding. Write a function called `secant_show` similar to the `newtonraphson_show` and `fixedpoint_show` functions. In your function, perform iterations of the algorithm and plot the results. It should behave in a very similar fashion to `newtonraphson_show`.
+
+A framework of the function has been provided. It will take 4 inputs:
+
+* The function. It takes a value of x and returns the value of f(x). (no need to return the derivative)
+* x0 The x-value at iteration 0
+* x1 The x-value at iteration 1. The secant uses the last two values, and draws a secant line that connects those until that secant line intersects the x-axis.
+* the number of iterations to perform
+
+While non-trivial, I do believe that the previous examples will provide a good guide for writing your code.
+
+Once complete, use your function to find the root of $log(x) - exp(-x)$ using $x_0 = 1$ and $x_1 = 2$.
+
+
+```{r}
+library("ggplot2")
+secant_show <- function(ftn, x0, x1, iter = 5) {
+df_points <- data.frame(x1=numeric(0), y1=numeric(0), x2=numeric(0), y2=numeric(0))
+ 
+  cat("The two points are is :", x0, x1, "\n")
+  
+  for (i in 1:iter) {
+    points(x1,ftn(x1),col="red")
+    x0_temp = x0
+    x1_temp = x1
+    x1= x1_temp-ftn(x1_temp)*(x1_temp-x0_temp)/(ftn(x1_temp)-ftn(x0_temp))
+    x0=x1_temp
+    cat("The two points are is :", x0, x1, "\n")
+    df_points[3*i-2,] <-c(x0_temp, ftn(x0_temp),x1_temp,ftn(x1_temp))
+    df_points[3*i-1,] <-c(x1_temp,ftn(x1_temp),x1,0)
+    df_points[3*i,] <- c(x1,0,x1,ftn(x1))
+  }
+  
+x_start <-min(df_points$x1,df_points$x2,x0-.1)
+x_end <-max(df_points$x1,df_points$x2,x0+.1)
+  
+x <- seq(x_start,x_end,length.out=200)
+  fx<-rep(NA,length(x))
+  for(i in seq_along(x)){
+    fx[i]<-ftn(x[i])
+  }
+  function_data <- data.frame(x,fx)
+  
+  p <- ggplot(function_data,aes(x=x,y=fx))+ 
+          geom_line(colour="blue",size=1)+
+          geom_segment(aes(x=x1,y=y1,xend=x2,yend=y2),data=df_points,colour = "red")+
+          geom_abline(intercept = 0,slope=0)
+  print(p)
+  return(x1)
+}
+plot(NA, xlim = c(-500, 500), ylim = c(0, 100))
+f <- function(x) (log(x) - exp(-x))
+secant_show(f, 1, 2)
+
+```
+
+
+6. __Coordinate Descent Algorithm for Optimization [25 points]__
+
+Coordinate descent is an optimization algorithm. It can be used to find a local minimum of a function. To perform coordinate descent, you perform a line search along one coordinate direction to find the value that minimizes the function in that direction while the other values are held constant. Once the value for that direction is updated, you perform the same operation for the other coordinate directions. This repeats until it has been updated for all coordinate directions, at which point the cycle repeats.
+
+Thus for a function of two variables $f(x,y)$, a simple version of the algorithm can be described as follows:
+
+1) Start with some initial values of $x$ and $y$. This is time 0, so we have $x^{(0)}$ and $y^{(0)}$.
+2) Iterate:
+    1) Update $x^{(t+1)}$ to be the value of $x$ that minimizes $f(x,y = y^{(t)})$
+    2) Update $y^{(t+1)}$ to be the value of $y$ that minimizes $f(x = x^{(t+1)},y)$
+3) Stop when some convergence criterion has been met.
+
+The "tricky" part of the algorithm is finding the value that minimizes the function along one of the directions. 
+
+__Golden Section Search Method (with Video)__
+This unidimensional minimization be done in one of many ways, but for our purposes, we will use the golden section search method.
+
+The premise of how the golden section search works is summarized very nicely in this video from CUBoulderComputing: https://vimeo.com/86277921
+
+I will provide the code for the golden section search method here. This is a modified version of Eric Cai's code (https://chemicalstatistician.wordpress.com). It has been modified so that the locations of x1 and x2 match the CUBoulderComputing video
+
+```{r}
+##### A modifcation of code provided by Eric Cai
+golden = function(f, lower, upper, tolerance = 1e-5)
+{
+   golden.ratio = 2/(sqrt(5) + 1)
+
+   ## Use the golden ratio to find the initial test points
+   x1 <- lower + golden.ratio * (upper - lower)
+   x2 <- upper - golden.ratio * (upper - lower)
+   
+   ## the arrangement of points is:
+   ## lower ----- x2 --- x1 ----- upper
+
+   ### Evaluate the function at the test points
+   f1 <- f(x1)
+   f2 <- f(x2)
+
+   while (abs(upper - lower) > tolerance) {
+        if (f2 > f1) {
+        # the minimum is to the right of x2
+        lower <- x2  # x2 becomes the new lower bound
+        x2 <- x1     # x1 becomes the new x2
+        f2 <- f1     # f(x1) now becomes f(x2)
+        x1 <- lower + golden.ratio * (upper - lower)  
+        f1 <- f(x1)  # calculate new x1 and f(x1)
+        } else {
+        # then the minimum is to the left of x1
+        upper <- x1  # x1 becomes the new upper bound
+        x1 <- x2     # x2 becomes the new x1
+        f1 <- f2
+        x2 <- upper - golden.ratio * (upper - lower)
+        f2 <- f(x2)  # calculate new x2 and f(x2)
+        }
+    }
+    (lower + upper)/2 # the returned value is the midpoint of the bounds
+}
+```
+
+We can thus use the golden search to find the minimizing value of a function. For example, the function $f(x) = (x - 3)^2$ has a minimum value at $x = 3$.
+
+```{r}
+f <- function(x){ (x - 3)^2 }
+golden(f, 0, 10)
+```
+
+__Back to Coordinate Descent__
+
+With our golden search function, we can now create our coordinate descent algorithm:
+
+1) Start with some initial values of $x$ and $y$. This is time 0, so we have $x^{(0)}$ and $y^{(0)}$.
+2) Iterate:
+    1) Update $x$:
+        a. Find the function $f(x) = f(x,y = y^{(t)})$
+        b. Use golden search to minimize $f(x)$
+        c. Set $x^{(t+1)}$ be the result of the search.
+    2) Update $y$
+        a. Find the function $f(y) = f(x = x^{(t+1)},y)$
+        b. Use golden search to minimize $f(y)$
+        c. Set $y^{(t+1)}$ be the result of the search.
+3) Stop when some convergence criterion has been met.
+
+__Write code to perform coordinate descent to minimize the following function:__
+
+$$g(x,y) = 5 x ^ 2 - 6 x y + 5 y ^ 2$$
+
+```{r}
+g <- function(x,y) { 
+    5 * x ^ 2 - 6 * x * y + 5 * y ^ 2
+}
+x <- seq(-1.5,1, len=100)
+y <- seq(-1.5,1, len=100)
+```
+
+Requirements for this task:
+
+1) Your search space for the golden search can be limited to the range -1.5 to 1.5 for both the x and y directions.
+2) For your starting point, use x = -1.5, and y = -1.5.
+3) For the first step, hold y constant, and find the minimum in the x direction.
+4) Plot the segments showing each 'step' of the algorithm onto the contour plot.
+5) After each full iteration, print out the current values of x and y. Hint: after your first full iteration, the next location should be (-0.9, -0.54).
+6) Stop after 15 full iterations, or if the difference between one x and the next is less then `1e-5`. The true minimum is at (0,0). Your code should come close to that.
+
+This shouldn't be too hard. I've already given you the golden search function. My complete solution is 12 lines. Of course yours might be longer or shorter, but that should give you an idea of how complicated or not complicated it needs to be.
+
+```{r}
+# two options to plot. Which one to use is your choice
+
+# use ggplot
+df <- data.frame(x = rep(x, each = 100), y = rep(y, 100), z = outer(x,y,g)[1:100^2])
+#ggplot(df, aes(x=x,y=y,z=z)) + geom_contour(binwidth = 0.9, boundary = 0.5)
+
+# or use contour
+z <- outer(x,y,g)
+contour(x,y,z, levels = seq(.5,5,by=.9)) # code to plot contour lines
+
+# write your code here
+x_i <- -1.5
+y_i <- -1.5
+
+for(i in 1:15){
+  g_yi=function(x){
+    return(g(x=x,y=y_i))
+  }
+  x_new=golden(g_yi,-1.5,1.5)
+  g_x_new=function(y){
+    return(g(x=x_new,y=y))
+  }
+  y_new=golden(g_x_new,-1.5,1.5)
+  lines(c(x_i,x_new,x_new),c(y_i,y_i,y_new),col="red")
+  cat("After iteration ", i,", location is (",x_new," ,",y_new,").\n")
+if(abs(x_new-x_i)<1e-5){
+  cat("early stop since difference between one x and the next is less then 1e-5.\n")
+  break
+}  
+  x_i =x_new
+  y_i=y_new
+}
+
+```
+
+
+
+
