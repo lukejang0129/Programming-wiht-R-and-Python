@@ -1,6 +1,7 @@
 # Repository for R-Programming 
 
 - Computational Statistics with R
+- Data Analysis with Python
 - Design and Analysis of Experiment
 - Monte Carlo Methods
 - Practice of Statistical Consulting
