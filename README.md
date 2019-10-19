@@ -1,8 +1,8 @@
 # Repository for R-Programming 
 
-- Computational_Statistics_with_R
-- Design_and_Analysis_of_Experiment
-- Monte_Carlo_Methods
-- Practice_of_Statistical_Consulting
-- Regression_and_Data_Mining
-- Statistical_Programming_with_R
+- Computational Statistics with R
+- Design and Analysis of Experiment
+- Monte Carlo Methods
+- Practice of Statistical Consulting
+- Regression and Data Mining
+- Statistical Programming with R
