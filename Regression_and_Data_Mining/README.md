@@ -1,9 +1,9 @@
-# Introduction to Regression and Data Mining
+# Regression and Data Mining
 
- - Model fitting / overfitting
- - KNN classifier & effect of k  
- - Leave one out CV & Non-parametric boostrapping
- - Model selection, Ridge & Lasso Regression
  - Generalized additive model
+ - KNN classifier & effect of k  
+ - Los Angeles Fire Department Response Time Prediction
+ - Leave one out CV & Non-parametric Boostrapping
+ - Model fitting / overfitting
+ - Model selection, Ridge & Lasso Regression
  - Tree methods
- - Predicting reponse time using Los Angeles Fire Department Dataset
