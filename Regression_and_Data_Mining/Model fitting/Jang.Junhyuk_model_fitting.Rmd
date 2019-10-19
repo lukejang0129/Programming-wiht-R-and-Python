@@ -1,0 +1,168 @@
+---
+title: "Stat_101_C_HW1"
+author: "Junhyuk Jang"
+date: "April 10, 2017"
+output: pdf_document
+---
+SID : 004 728 134
+LEC : 2
+DIS : 2B
+
+```{r}
+library(plyr)
+# Q1
+df <- read.csv("~/Desktop/UCLA_Academic/Spring 2017/STAT 101_C/HW/Heart.csv")
+head(df)
+# (a) when a predictor is given, check whether response variable
+# prediction : (1) When MaxHR is greater than 150,and other predictors are fixed, 
+#                predict the existence of heart disease.
+#              (2) When Cholesterol level is greater than 250,and other 
+#                predictors are fixed, predict the existence of heart disease. 
+#                
+# Inference : (1) Which predictor is the most strong effect on the
+#                 heart disease?
+#             (2) What is the relationship between age and heart disease
+
+# (b)
+df <- df[,-1]
+head(df)
+df <- df[complete.cases(df),]
+df$Sex = as.factor(df$Sex)
+realsample = sample(seq(1,297),200,replace = F)
+train = df[realsample,]
+test = df[-realsample,]
+
+logit.out = glm(AHD~.,family=binomial(link='logit'),data = train)
+summary(logit.out)
+
+# Based on summary result, we  can say person's sex has the most strong 
+# effect on heart disease.
+
+# Q2
+df1 <- read.csv("~/Desktop/UCLA_Academic/Spring 2017/STAT 101_C/HW/hw1.csv")
+plot(x~y,data = df1)
+# (a)
+model1 <- lm(y~x,data = df1)
+summary(model1)
+model2 <-  lm(y~poly(x,2,raw=TRUE),data = df1)
+model3 <-  lm(y~poly(x,3,raw=TRUE),data = df1)
+model4 <-  lm(y~poly(x,4,raw=TRUE),data = df1)
+model5 <-  lm(y~poly(x,5,raw=TRUE),data = df1)
+
+anova(model1)
+(MSE_training_1 <- sum((model1$residuals)^2)/9)
+anova(model2)
+(MSE_training_2 <- sum((model2$residuals)^2)/9)
+anova(model3)
+(MSE_training_3 <- sum((model3$residuals)^2)/9)
+anova(model4)
+(MSE_training_4 <- sum((model4$residuals)^2)/9)
+anova(model5)
+(MSE_training_5 <- sum((model5$residuals)^2)/9)
+summary(model5)
+
+# (b)
+# Based on only MSE value, model 5 has the smallest MSE. I decide to 
+# choose fifth-order polynomial model which is model 5.
+
+
+# (c)
+set.seed(123456) 
+x = seq(0,4,by=.5)
+y = 500+200*x+rnorm(length(x),0,100)
+
+predicty1 <- predict(model1,newdata = as.data.frame(x),type = "response")
+predicty2 <- predict(model2,newdata = as.data.frame(x),type = "response")
+predicty3 <- predict(model3,newdata = as.data.frame(x),type = "response")
+predicty4 <- predict(model4,newdata = as.data.frame(x),type = "response")
+predicty5 <- predict(model5,newdata = as.data.frame(x),type = "response")
+
+(MSE_testing_1 <- sum((predicty1 - y)^2) / length(x))
+(MSE_testing_2 <- sum((predicty2 - y)^2) / length(x))
+(MSE_testing_3 <- sum((predicty3 - y)^2) / length(x))
+(MSE_testing_4 <- sum((predicty4 - y)^2) / length(x))
+(MSE_testing_5 <- sum((predicty5 - y)^2) / length(x))
+
+# (d)
+# Different from the traing MSE, model1 has the smallest MSE in the 
+# testing data. It implies that the model 5 was overfitted. If I choose the model
+# by considering low variance and low bias, I would choose model 1.
+# The true model is y = 500+200*x and the model_1=558.12 + 178.78x. It seems 
+# the model 1 fit the a relationship the best.
+
+# Q3
+# (a)
+# When we have the large sample size and small number of predictors, it would 
+# be better to use flexible model becasue we can predict the large number of   
+# parameters that are present in the model using the large number of sample size.
+
+# (b)
+# When we have the small number of observations is small, we cannot use a flexible
+# statistical learning method. In this situation, use inflexible method is the 
+# best we can do.
+
+#(c)
+# When the relationship between the predictors and response is highly
+# non-linear,we cannot use inflexible method because it is hard to fit a
+# relationship. In this case, it is better to use the flexible model
+# to fit a non-linear relationship for the model.
+
+#(d)
+# Simple would be better.The sentence "variance is extremely high" implies that 
+# observation is very far from true.The model achieved by the flexible method
+# will involve all the noise.
+
+# Q4
+# (a) Classification (inference? prediction?)
+#       (1) response: Whether got the leukemia or not.
+#         predictors: cholesterol level, 
+#       a white blood cell lv,sex,a red blood cell lv
+#               -> prediction
+#       (2) response: Whether got the Hepatitis B Infections
+#         predictors: height,weight,maxHR,Age,gender,jaundice
+#               -> prediction
+#       (3) response: Whether survived or not in the titanic accident.
+#         predictors: passenger class, age, with family or alone
+#               -> prediction
+# (b) Regression     (inference? prediction?)
+#       (1) stock alaysis response: the price of apple stock 
+#                  predictors: daily return, closing price, starting price,
+#                              highest,lowest
+#               -> prediction
+#       (2) response: SAT score
+#           predictors: mathe score, english score, nationality, Sex, Age
+#               -> prediction
+#       (3) response: teenagers' body weihgt
+#           predictors: family income, age, sex
+#               -> precition
+
+# (c) Cluster analysis
+#       (1) Divsion of the different countries into 3 groups. High GDP& democratic,
+#           medium GDP&democratic,low GDP& democratic.
+#           response variable is the differentiation of countries into one of 
+#           three catagories given above. Predictors are whether democratic
+#           or not, GDP.
+#          -> prediction.
+#       (2) Division of  social class into "High or low or mediocre".
+#           response variable is the differentiation of peoples' social class.
+#           Predictors are occupations,income and educaiton.
+#          -> prediction
+#       (3) Division of companies into "big,medium,small".
+#           reponse vaiable is the differentiation of company size.
+#           Predictors are profit-making ,# of employee, #of affiliated companies.
+#           -> prediction
+
+# Q5
+# (a)   
+# 1. Linearity of parameters. (y = x*beta + epsilon)
+# 2. For all observations, the expected value of the error term is zero.
+# 3. Variance of the error term is constant.
+# 4. Error term is independently ditributed and not correlated.
+# 5. x has no pattern with the error term.
+# (b)
+# If I got students SAT math score from school A,B,C,D,E and variance of each schools 
+# are different, I cannot get the best linear unbiased estimators becase assumption 
+# 3 is violated
+
+```
+

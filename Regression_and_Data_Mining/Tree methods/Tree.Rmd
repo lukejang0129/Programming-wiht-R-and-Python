@@ -1,0 +1,105 @@
+---
+title: "STAT_101C HW6"
+author: "Junhyuk Jang"
+date: "5/31/2017"
+output: pdf_document
+---
+SID : 004 728 134 
+LEC : 2 
+DIS : 2B
+```{r}
+#(a)
+require(ggplot2)
+require(tree)
+library(ggplot2)
+library(tree)
+set.seed(9876)
+setwd("/Users/junhyukjang/Desktop/UCLA_Academic/Spring 2017/STAT 101_C/HW")
+birth <- read.csv("better2000births.csv")
+attach(birth)
+head(birth)
+
+train=sample(1:nrow(birth),nrow(birth)/2)
+test=birth[-train,]
+
+# Misclassification error using a tree method.
+tree_m <- tree(Premie~., birth,subset=train)
+summary(tree_m) #training misclassification rate is approximately 0.05606
+plot(tree_m)
+text(tree_m,pretty=0)
+
+pred_t <- predict(tree_m, test, type="class")
+tb <- table(pred_t,test$Premie)
+tb
+1-sum(diag(tb))/sum(tb) 
+# The testing missclassification error is approximately 0.0551 which is really
+# similar to training missclassification error. This result tells that 
+# it is not overfitted.
+
+#(b)
+cv <- cv.tree(tree_m,FUN=prune.misclass)
+qplot(x=cv$size, y = cv$dev, geom = c("point", "line"))
+qplot(x=cv$k, y=cv$dev, geom="point","line")
+
+
+prun_t <- prune.misclass(tree_m, best=2)
+plot(prun_t)
+text(prun_t,pretty=0)
+
+
+pre <- predict(prun_t,test,type="class")
+tb2 <- table(pre,test$Premie)
+1-sum(diag(tb2))/sum(tb2) 
+# It is improved from 0.05606 to 0.08908909.
+# Pruning do have an effect.
+
+#(c)
+# The pruned tree cannot tell us whether smoking is a potential cause of 
+# premature births. Instead, the tree can tell whether baby's births prematurely or not
+# depending on the baby's birth weight. For example, if a baby's weight is less than 95.5,
+# the baby is expected to be born prematurely and if a baby's weight is more than
+# 95.5, the baby is expected to be not born prematurely.
+
+#(d)
+# The testing misclassification error I've got is approximately 8.9% which is
+# 0.1% less than the simple prediction of the prematurely born baby(9%). 
+```
+
+```{r}
+# Q2
+# (a)
+t <- tree(weight~., birth,subset=train)
+summary(t) 
+plot(t)
+text(t,pretty=0)
+
+p <- predict(t, test)
+mean((test$weight-p)^2) 
+# The MSE I have got is 271.4958.
+
+#(b)
+cv2 <- cv.tree(t,FUN=prune.tree)
+cv2
+qplot(x=cv2$size, y = cv2$dev, geom = c("point", "line"))
+qplot(x=cv2$k, y=cv2$dev, geom="point","line")
+# I can say the best size is the size of 7.
+
+prune_7 <- prune.tree(t, best=7)
+plot(prune_7)
+text(prune_7,pretty=0)
+pre7 <- predict(prune_7,test)
+mean((test$weight-pre7)^2)
+# The MSE I have got here is same as the above which is 271.4958.
+
+#(c)
+# When it comes to the baby who is not expected to be born prematurely,
+# the factors 1. Racedad:Asian,Black,Unknown, 2. Gained, 3. Habit, 4. Apgar1 
+# are the important factors. The important factors have no influence with each others.
+# In particular, the number of visits is not important predictor based on my pruned 
+# tree model.
+
+
+```
+
+
+

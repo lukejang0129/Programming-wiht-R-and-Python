@@ -1,0 +1,437 @@
+---
+title: "hw4-102c"
+author: "Nam Myungwoo"
+date: "June 7, 2017"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Do not post or distribute without permission.
+
+## 
+
+There are two parts to this homework assignment.
+
+Part 1 is relatively easy. It is worth 3*13 = 39 points.
+
+Part 2 is intended to be challenging. It is worth 30 points.
+
+Everyone will get 31 points just for turning something in.
+
+I recognize that this is 9th week, and many other classes have other stuff going on. If you can't figure out part 2, that's okay. Just turn in what you can.
+
+There is no shame in weighing responsibilities and recognizing what you have time to do or not do.
+
+You have to complete both parts to get full credit, but not completing part 2 will not have a devastating impact on your final grade. If you do just part 1 correctly, you'll still get 70 points on the assignment.
+
+# Part 1
+
+I have included the code from Andrew Landgraff's implementation of deciphering text using the metropolis algorithm. 
+
+I want you to read through the code and add comments in 13 sections which I have indicated. Each comment is worth 3 points. Please be thorough in your explanations.
+
+```{r, eval = FALSE, echo = TRUE}
+## Code by Andrew Landgraff
+## http://alandgraf.blogspot.com/2013/01/text-decryption-using-mcmc.html
+
+## this part takes a long time to run. I have saved the output as "tpm.Rdata" and it is loaded in the next code chunk
+setwd("~/Desktop/")
+reference = readLines("warandpeace.txt")
+reference = toupper(reference)
+
+trans.mat=matrix(0,27,27)
+rownames(trans.mat)=colnames(trans.mat)=c(toupper(letters),"")
+lastletter=""
+
+## 1) COMMENT: Explain the purpose of the overall loop
+##for each line from 1 through 66055
+#every 1000 lines will be printed out.
+#each lines and position will be counted how many characters are in that vector element.
+#current letter would be substring of position in the line.
+
+for (ln in 1:length(reference)) {
+  if (ln %% 1000 ==0) {cat("Line",ln,"\n")}
+  for (pos in 1:nchar(reference[ln])) {
+    curletter=substring(reference[ln],pos,pos)
+    ## 2) COMMENT: explain what happens in this conditional
+    ##-if the current letter is a regular alphabet(A~Z)character, go to the appropriate position in the matrix and add 1 to it.(summary)
+#we set the transition matrix such as that the row of trainsition matrix is going to be last letter.
+#the column of transition matrix would be current letter. 
+#set the value, which is the probability of going from last letter to current letter and equal to whatever value in the transition matrix add 1 to it. finally, set current letter to be last letter and repeat. 
+#the probability of going from last letter to current letter is set in the trainsition matrix.
+
+
+    if (curletter %in% toupper(letters)) {
+      trans.mat[rownames(trans.mat)==lastletter,
+                colnames(trans.mat)==curletter]=
+        trans.mat[rownames(trans.mat)==lastletter,
+                  colnames(trans.mat)==curletter]+1
+      lastletter=curletter
+    } else {
+      ## 3) COMMENT: explain what happens in this conditional
+      #if current letter is not an alphabet character(A to Z) and last letter is not ""(blank) and if the previous letter is an alphabet character, then go to the transition matrix and add 1 to the position.
+      if (lastletter!="") {
+        trans.mat[rownames(trans.mat)==lastletter,27]=
+          trans.mat[rownames(trans.mat)==lastletter,27]+1
+        lastletter=""
+      }
+    }
+  }
+  curletter=""
+  ## 4) COMMENT: explain what happens in this section
+  ##when it reach very end of a line of text
+#it is very similar with ##3 
+
+  if (lastletter!="") {
+    trans.mat[rownames(trans.mat)==lastletter,27]=
+      trans.mat[rownames(trans.mat)==lastletter,27]+1
+  }
+  lastletter=""
+}
+
+trans.prob.mat= (trans.mat+1) / sum(trans.mat)   ### different from the original code.
+
+save(trans.mat, file = "tm.Rdata")
+save(trans.prob.mat, file = "tpm.Rdata")
+
+
+```
+
+```{r}
+setwd("~/Desktop/")
+load("tm.Rdata")
+load("tpm.Rdata")
+
+library(ggplot2)
+library(reshape2)
+## a graphic representation of the transition matrix
+ggplot(melt(trans.prob.mat),aes(Var2,Var1))+geom_tile(aes(fill=value))+
+  scale_fill_gradient(low="white",high="black",limits=c(0,max(trans.prob.mat)))+
+  labs(x="Probability of Second Letter",y="Conditioning on First Letter",fill="Prob")+
+  scale_y_discrete(limits = rev(levels(melt(trans.prob.mat)$Var1)))+
+  coord_equal()
+
+
+# 5) COMMENT: explain this function
+# what is the format of the argument 'mapping'?
+#replace each letter with appropriate mapping
+#go through that decoded string of text and figure out log probability of that text. 
+
+decode <- function(mapping,coded) {
+  coded=toupper(coded)
+  decoded=coded
+  # 6) COMMENT: what does this loop iterate through
+  # it repeats number of characters in the correct text.
+  #number of coded of text with appropriate mapping.
+
+  for (i in 1:nchar(coded)) {
+    if (substring(coded,i,i) %in% toupper(letters)) {
+      ## 7) COMMENT: explain how this line does the decoding
+      #set the coded is equal to appropriate mapping
+#and result in decoded...
+
+
+      substring(decoded,i,i)=toupper(letters[mapping==substring(coded,i,i)])
+    }
+  }
+  decoded
+}
+
+# 8) COMMENT: What is the purpose of this function
+
+#the function will show that the decoded probabilities of going from last letter to current letter set in the trainsition matrix. each values are taken log to make larger than 0. 
+
+
+log.prob <- function(mapping,decoded) {
+  logprob=0
+  
+  lastletter=""
+  for (i in 1:nchar(decoded)) {
+    curletter=substring(decoded,i,i)
+    if (curletter %in% toupper(letters)) {
+      # 9) COMMENT: what happens in this conditional
+    #  take current value and look up tansition matrix of last letter and current letter and look up that combination and get probability of combination and take log of the probability and add that to current log probability.
+
+      logprob=logprob+log(trans.prob.mat[rownames(trans.mat)==lastletter,
+                                         colnames(trans.mat)==curletter])
+      lastletter=curletter
+    } else {
+      if (lastletter!="") {
+        logprob=logprob+log(trans.prob.mat[rownames(trans.mat)==lastletter,27])
+        lastletter=""
+      }
+    }
+  }
+  
+  if (lastletter!="") {
+    logprob=logprob+log(trans.prob.mat[rownames(trans.mat)==lastletter,27])
+    lastletter=""
+  }
+  logprob
+}
+
+```
+
+
+```{r}
+
+correctTxt="ENTER HAMLET HAM TO BE OR NOT TO BE THAT IS THE QUESTION WHETHER TIS NOBLER IN THE MIND TO SUFFER THE SLINGS AND ARROWS OF OUTRAGEOUS FORTUNE OR TO TAKE ARMS AGAINST A SEA OF TROUBLES AND BY OPPOSING END"
+
+
+set.seed(10)
+coded=decode(sample(toupper(letters)),correctTxt) # randomly scramble the text
+coded
+
+mapping = sample(toupper(letters)) # initialize a random mapping
+mapping
+
+cur.decode = decode(mapping,coded)
+cur.decode
+
+cur.loglike=log.prob(mapping,cur.decode)
+cur.loglike
+
+max.loglike = cur.loglike
+max.decode = cur.decode
+```
+
+
+
+
+## this code is not run as part of the r markdown file, but I recommend 
+## running it on your own system to get a feel for how it operates
+i = 1
+iters = 500
+
+while (i<=iters) {
+  ## 10) COMMENT: what happens in these four lines of code
+  proposal=sample(1:26,2) # select 2 letters to switch
+  #propose two letter swap
+#take sample from 1 to 26 and select two numbers 
+#proposed mapping is going to be equal to current mapping. 
+#except proposed mapping we swap these two letters result in two letters swap.
+
+  prop.mapping=mapping
+  prop.mapping[proposal[1]]=mapping[proposal[2]]
+  prop.mapping[proposal[2]]=mapping[proposal[1]]
+  
+  prop.decode=decode(prop.mapping,coded)
+  prop.loglike=log.prob(prop.mapping,prop.decode)
+  
+  ## 11) COMMENT: explain how this if statement implements the metropolis algorithm
+  #compare proposed logikelihood and current loglikelihood. and take difference between them.
+#if it is bigger than 0, we accpet the value then it will be current mapping.
+
+  if (runif(1)<exp(prop.loglike-cur.loglike)) {
+    mapping=prop.mapping
+    cur.decode=prop.decode
+    cur.loglike=prop.loglike
+    
+    ## 12) COMMENT: What does this part do
+    #if current loglikelihood is bigger than max logliklihood, we accept it and update the value.
+
+  
+    if (cur.loglike>max.loglike) {
+      max.loglike=cur.loglike
+      max.decode=cur.decode
+    }
+    
+    ## 13) COMMENT: What does this part do  
+    #output all updated current decode every sigle line. 
+    cat(i,cur.decode,"\n")
+    i=i+1
+  }
+}
+
+
+
+## Part 2
+
+I am including code from chapter 7 of Machine Learning for Hackers. 
+
+The above code looked at the probability of transitioning from one letter to another. So Q-U, H-E, B-E would all have high probability but J-T has a low probability. 
+
+ML for Hackers takes a different approach for calculating the probability of the text. It uses a "lexical database" which has entries for about 82,622 words in the english language. Each word has a probability. The function looks at each word, looks up its associated probability, and comes up with a total log-probability for the sentence.
+
+You may have noticed that the method using two-letter sequences to evaluate the probability may produce sub-optimal results. That's because a nonsense word like B-E-T-H-E-V will have a higher probability than a real word like S-P-O-R-T-Y because the letter combinations are more likely for the nonsense word than the real one.
+
+```{r}
+log.prob(LETTERS, 'SPORTY')
+log.prob(LETTERS, 'BETHEV')
+```
+
+On the other hand, the whole-word method may struggle to get started because in the beginning all of the words proposed may be nonsense words.
+
+I've included the code from the book Machine Learning for Hackers here, with a small modification to use the `decode()` function previously defined rather than the decoding function the ML for Hackers authors wrote.
+
+
+```{r}
+setwd("~/Desktop/")
+# this code is taken from Machine Learning for Hackers Chapter 7
+
+# File-Name:       chapter07.R           
+# Date:            2012-02-10                                
+# Author:          Drew Conway (drew.conway@nyu.edu) and John Myles White (jmw@johnmyleswhite.com) 
+# All source code is copyright (c) 2012, under the Simplified BSD License.  
+
+# load the database into R
+load(file.path('lexical_database.Rdata'))
+
+# This function looks up a single word (1-gram) in the database and returns the probability
+# if the word is not found in the database, it returns the smallest non-zero value (called machine epsilon)
+# (A value of 0 would become -Infinity, which would be problematic)
+one.gram.probability <- function(one.gram, lexical.database = list())
+{
+  lexical.probability <- lexical.database[[one.gram]]
+  
+  if (is.null(lexical.probability) || is.na(lexical.probability))
+  {
+  return(.Machine$double.eps)
+  }
+  else
+  {
+  return(lexical.probability)
+  }
+}
+
+# Calculates the log-probability of the text, 
+log.probability.of.text <- function(text, lexical.database = list())
+{
+  log.probability <- 0.0
+  text <- tolower(text)
+  text <- unlist(strsplit(text, " "))
+  for (string in text)
+  {
+    log.probability <- log.probability +
+      log(one.gram.probability(string, lexical.database))
+  }
+  return(log.probability)
+}
+
+```
+
+```{r}
+log.probability.of.text('BETHEV', lexical.database)  #  nonsense word has very low probability
+log.probability.of.text('SPORTY', lexical.database)  #  actual has a higher probability
+```
+
+We can use an 'ensemble' technique by combining both methods to give the current deciphering a probability score.
+
+Part of the probability score will be based on the letter-to-letter probabilities based on the transition matrix (`log.prob()`). The other part of the probability score will be based on the probabilities of the actual words in the lexical database (`log.probability.of.text()`).
+
+The simplest way to combine these probabilities is to add the log-probabilities together. However, you probably do not want to weight the log-probabilities equally. For most of the deciphering process, you will not have actual words, but just garbled text. In these instances, you will make better choices by looking at the letter-to-letter transitions than trying to see if any actual words form. 
+
+Thus you'll want to create a combined-log-probability value which will be of the form: log-probability-based-on-matrix + weight * log-probability-based-on-lexical-database.
+
+I recommend using a weight of around 0.05 to 0.15. This makes the log-probability-based-on-lexical-database influence the probability score a little less.
+
+I also recommend changing the line: `if (runif(1)<exp(prop.loglike-cur.loglike))`
+
+to something like: 
+
+`if (runif(1)<exp( 0.5 * (prop.loglike-cur.loglike) ) )`
+
+The addition of the 0.5 inside the exponential makes the probability differences to be smaller, and thus 'easier' to move.
+
+```{r, eval = TRUE, echo = TRUE}
+## Modify this code to incorporate the usage of both the log.prob and log.probability.of.text
+## change eval to TRUE, so this code chunk runs in the final output.
+
+# test string 1
+correctTxt="ENTER HAMLET HAM TO BE OR NOT TO BE THAT IS THE QUESTION WHETHER TIS NOBLER IN THE MIND TO SUFFER THE SLINGS AND ARROWS OF OUTRAGEOUS FORTUNE OR TO TAKE ARMS AGAINST A SEA OF TROUBLES AND BY OPPOSING END"
+
+set.seed(10)
+coded=decode(sample(toupper(letters)),correctTxt) # randomly scramble the text
+mapping = sample(toupper(letters)) # initialize a random mapping
+cur.decode = decode(mapping,coded)
+cur.loglike=log.prob(mapping,cur.decode)
+
+max.loglike = cur.loglike
+max.decode = cur.decode
+
+i = 1
+iters = 1000
+
+while (i<=iters) {
+  ## 10) COMMENT: what happens in these four lines of code
+  proposal=sample(1:26,2) # select 2 letters to switch
+  prop.mapping=mapping
+  prop.mapping[proposal[1]]=mapping[proposal[2]]
+  prop.mapping[proposal[2]]=mapping[proposal[1]]
+  
+prop.decode=decode(prop.mapping,coded)
+prop.loglike=log.prob(prop.mapping,prop.decode)+0.15*log.probability.of.text(prop.decode,lexical.database)
+
+if (runif(1)<exp(0.5*(prop.loglike-cur.loglike))) {
+mapping=prop.mapping
+cur.decode=prop.decode
+cur.loglike=prop.loglike
+
+if (cur.loglike>max.loglike) {
+max.loglike=cur.loglike
+max.decode=cur.decode
+}
+
+cat(i,cur.decode,"\n")
+i=i+1
+}
+}
+
+
+
+
+
+print(max.decode)
+
+```
+
+```{r, eval = TRUE, echo = TRUE}
+# you can try it with a second string as well.
+# test string 2
+correctTxt2 = "The United States is a highly developed country, with the world's largest economy by nominal GDP and second-largest economy by PPP."
+
+coded=decode(sample(toupper(letters)),correctTxt2) # randomly scramble the text
+mapping = sample(toupper(letters))  # initialize a random mapping
+cur.decode = decode(mapping,coded) 
+cur.loglike=log.prob(mapping,cur.decode)+0.05*log.probability.of.text(cur.decode,lexical.database)
+
+max.loglike = cur.loglike
+max.decode = cur.decode
+
+i = 1
+iters = 1000
+
+while (i<=iters) {
+  
+  proposal=sample(1:26,2) # select 2 letters to switch
+  prop.mapping=mapping
+  prop.mapping[proposal[1]]=mapping[proposal[2]]
+  prop.mapping[proposal[2]]=mapping[proposal[1]]
+  
+  prop.decode=decode(prop.mapping,coded)
+  prop.loglike=log.prob(prop.mapping,prop.decode)+0.05*log.probability.of.text(prop.decode,lexical.database)
+  
+  if (runif(1)<exp(0.5*(prop.loglike-cur.loglike))) {
+    mapping=prop.mapping
+    cur.decode=prop.decode
+    cur.loglike=prop.loglike
+    
+    if (cur.loglike>max.loglike) {
+      max.loglike=cur.loglike
+      max.decode=cur.decode
+    }
+    
+    cat(i,cur.decode,"\n")
+    i=i+1
+  }
+}
+
+
+
+print(max.decode)
+
+```

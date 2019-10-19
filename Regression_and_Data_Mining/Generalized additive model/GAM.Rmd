@@ -1,0 +1,172 @@
+---
+title: "Stat 101C HW5"
+author: "Junhyuk Jang"
+date: "May 23, 2017"
+output: pdf_document
+---
+SID: 004 728 134 DIS: 2A
+```{r}
+# 4
+x = -2:2
+y = c(1 + 0 + 0, # x = -2
+      1 + 0 + 0, # x = -1
+      1 + 1 + 0, # x = 0
+      1 + (1-0) + 0, # x = 1
+      1 + (1-1) + 0 # x =2
+      )
+plot(x,y)
+
+# 1. y = 3-x between 1 and 2
+# 2. y = 2 between 0 and 1
+# 3. y = 1 between -2 and 0
+
+#6.
+#a)
+set.seed(1)
+Wage <- read.csv("~/Desktop/WageLec2.csv")
+attach(Wage)
+library(boot)
+del <- rep(NA, 10)
+for (i in 1:10) {
+    fit <- glm(wage ~ poly(age, i), data = Wage)
+    del[i] <- cv.glm(Wage, fit, K = 10)$delta[1]
+}
+plot(1:10, del, xlab = "Degree", ylab = "Test MSE", type = "l")
+del_min <- which.min(del)
+points(which.min(del), del[which.min(del)], col = "red", cex = 2, pch = 20)
+
+# The polynomial degree 9 minimized the test MSE.
+# It is require to test using ANOVA that whether M1 is sufficiently explain the data or
+# we need more complex model to explain the data.
+
+fit.1 = lm(wage~poly(age, 1), data=Wage)
+fit.2 = lm(wage~poly(age, 2), data=Wage)
+fit.3 = lm(wage~poly(age, 3), data=Wage)
+fit.4 = lm(wage~poly(age, 4), data=Wage)
+fit.5 = lm(wage~poly(age, 5), data=Wage)
+fit.6 = lm(wage~poly(age, 6), data=Wage)
+fit.7 = lm(wage~poly(age, 7), data=Wage)
+fit.8 = lm(wage~poly(age, 8), data=Wage)
+fit.9 = lm(wage~poly(age, 9), data=Wage)
+fit.10 = lm(wage~poly(age, 10), data=Wage)
+anova(fit.1, fit.2, fit.3, fit.4, fit.5, fit.6, fit.7, fit.8, fit.9, fit.10)
+
+# Anova comparison shows that more than 3 polynomial degree models are 
+# statistically insignificant with 0.001 significance level.
+
+plot(wage ~ age, data = Wage, col = "darkblue") 
+agelims <- range(Wage$age)
+age.grid <- seq(from = agelims[1], to = agelims[2])
+fit <- lm(wage ~ poly(age, 3), data = Wage)
+preds <- predict(fit, newdata = list(age = age.grid)) 
+lines(age.grid, preds, col = "red", lwd = 2)
+
+# b)
+cv <- rep(NA, 10)
+for (i in 2:10) {
+    Wage$age.cut <- cut(Wage$age, i)
+    fit <- glm(wage ~ age.cut, data = Wage)
+    cv[i] <- cv.glm(Wage, fit, K = 10)$delta[1]
+}
+plot(2:10, cv[-1], xlab = "Cuts", ylab = "Test MSE", type = "l")
+min <- which.min(cv)
+points(which.min(cv), cv[which.min(cv)], col = "red", cex = 2, pch = 20)
+
+# The plot shows that with 8 cuts we can mimize the Test MSE
+
+plot(wage ~ age, data = Wage, col = "darkgrey")
+age <- range(Wage$age)
+grid <- seq(from = age[1], to = age[2])
+fit <- glm(wage ~ cut(age, 8), data = Wage)
+preds <- predict(fit, data.frame(age = grid))
+lines(grid, preds, col = "red", lwd = 2)
+
+# 7.
+set.seed(1)
+summary(Wage$maritl)
+summary(Wage$jobclass)
+par(mfrow = c(1, 2))
+plot(Wage$maritl, Wage$wage)
+plot(Wage$jobclass, Wage$wage)
+
+# We can say that informational jobs has higher wage than industiral job on average.
+# The plot shows that the married person make more money on average compare to the other 
+# groups
+
+# install.packages("gam")
+library(gam)
+fit0 <- gam(wage ~ lo(year, span = 0.7) + s(age, 5) + education, data = Wage)
+fit1 <- gam(wage ~ lo(year, span = 0.7) + s(age, 5) + education + jobclass, data = Wage)
+fit2 <- gam(wage ~ lo(year, span = 0.7) + s(age, 5) + education + maritl, data = Wage)
+fit3 <- gam(wage ~ lo(year, span = 0.7) + s(age, 5) + education + jobclass + maritl, data = Wage)
+anova(fit0, fit1, fit2, fit3)
+
+# Based on the p-value model 3 is prefered than the others (Lowest p-value).
+
+par(mfrow = c(3, 2))
+plot(fit3, se = T, col = "blue")
+
+# 10
+# a)
+library(leaps)
+college <- read.csv("~/Desktop/CollegeLec2.csv")
+attach(college)
+college <- college[,-1]
+
+train <- sample(length(Outstate), length(Outstate) / 2)
+test <- -train
+college.train <- college[train, ]
+college.test <- college[test, ]
+fit <- regsubsets(Outstate ~ ., data = college.train, nvmax = 19, method = "forward")
+fit.summary <- summary(fit)
+par(mfrow = c(1, 3))
+plot(fit.summary$cp, xlab = "Number of variables", ylab = "Cp", type = "l")
+min.cp <- min(fit.summary$cp)
+std.cp <- sd(fit.summary$cp)
+abline(h = min.cp + 0.2 * std.cp, col = "red", lty = 2)
+abline(h = min.cp - 0.2 * std.cp, col = "red", lty = 2)
+plot(fit.summary$bic, xlab = "Number of variables", ylab = "BIC", type='l')
+min.bic <- min(fit.summary$bic)
+std.bic <- sd(fit.summary$bic)
+abline(h = min.bic + 0.2 * std.bic, col = "red", lty = 2)
+abline(h = min.bic - 0.2 * std.bic, col = "red", lty = 2)
+plot(fit.summary$adjr2, xlab = "Number of variables", ylab = "Adjusted R2", type = "l", ylim = c(0.4, 0.84))
+max.adjr2 <- max(fit.summary$adjr2)
+std.adjr2 <- sd(fit.summary$adjr2)
+abline(h = max.adjr2 + 0.2 * std.adjr2, col = "red", lty = 2)
+abline(h = max.adjr2 - 0.2 * std.adjr2, col = "red", lty = 2)
+
+# The plots of CP,BIC and Adj-R^2 show that it require minimun 14 subsets
+# so that score can be within 0.2 standard deviation from the optimal.
+
+fit <- regsubsets(Outstate ~ ., nvmax=19,data = college, method = "forward")
+coeffs <- coef(fit, id = 14)
+names(coeffs)
+
+# b)
+fit <- gam(Outstate ~ Private + s(Room.Board, df = 2) + s(PhD, df = 2) +
+                   s(perc.alumni, df = 2) + s(Expend, df = 5) +
+                   s(Grad.Rate, df = 2), data=college.train)
+par(mfrow = c(2, 3))
+plot(fit, se = T, col = "green")
+
+# Room.Board vs s, perc.alumini vs s and grad.rate vs s look linear compare to the others.
+# PhD vs s, look slightly non-linear.
+# Expend vs s looks highly non-linear.
+
+# c)
+pred <- predict(fit, college.test)
+(error <- mean((college.test$Outstate - pred)^2))
+
+sst <- mean((college.test$Outstate - mean(college.test$Outstate))^2) 
+rss <- 1 - error / sst
+rss
+
+#  GAM with 14 predictors we obtained test R-squared is 0.785. This result is has 
+# a little improvement towards OLS.
+
+# d)
+summary(fit)
+# Non- parametric ANOVA approach shows that there is strong non-linear relationship between
+# response variable and the predictor expend.
+

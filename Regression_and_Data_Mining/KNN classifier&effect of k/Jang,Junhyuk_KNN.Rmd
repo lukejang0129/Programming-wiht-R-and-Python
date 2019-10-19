@@ -1,0 +1,128 @@
+---
+title: "Jang.Junhyuk"
+author: "Junhyuk Jang"
+date: "April 14, 2017"
+output: pdf_document
+---
+SID : 004 728 134
+LEC : 2
+DIS : 2B
+```{r}
+library(ggplot2)
+library("reshape2")
+# Q1
+df <- read.csv("~/Desktop/UCLA_Academic/Spring 2017/STAT 101_C/HW/LArealestate.csv")
+df <- df[complete.cases(df),]
+attach(df)
+df$city[df$city == "culver city"] = "Culver City"
+ggplot(df,aes(x=beds,y = price,color = city))+
+        geom_point(shape = 1) + 
+        geom_smooth(method = lm)
+
+# By increasing the number of beds which cities house price is most rapidly 
+# grow?
+# Based on my qplot, it is obivous that by incresing beds, the house price 
+# of "beverly hills" is most rapidly growth.
+# There no rapid rapid price growth for "Culver city","Palms".
+
+# Q2
+df <- read.csv("~/Desktop/UCLA_Academic/Spring 2017/STAT 101_C/HW/cdc.csv")
+head(df)
+df$exerany <- as.factor(df$exerany)
+
+df$group[df$exerany == "0" & df$gender == "f"] <- 1
+df$group[df$exerany == "0" & df$gender == "m"] <- 2
+df$group[df$exerany == "1" & df$gender == "f"] <- 3
+df$group[df$exerany == "1" & df$gender == "m"] <- 4
+
+sp <- ggplot(df,aes(x = weight,y = wtdesire)) + geom_point(shape = 1) 
+sp + facet_grid(.~group) + geom_smooth(method = lm) + geom_smooth()   
+
+sp1 <- ggplot(df,aes(x = weight,y = wtdesire,color = exerany)) + geom_point(shape = 1)
+sp1 + geom_smooth(method = lm) + geom_smooth()
+
+# (a) There is positve linear relationship between weight and desire weight.
+# (b) In this case the plots have a linear pattern. So, it would be better
+# to make our model with low felxibility. When we use smooth line, the smooth line
+# too hard to find a pattern that it is overfitting the plots. In other words,smooth model
+# could be less biased than inflexible model but in this case will have too high variance.
+
+
+# Q3
+
+df <- read.table("~/Desktop/UCLA_Academic/Spring 2017/STAT 101_C/HW/banknote.csv",header = T)
+library(class)
+library(caret)
+library(e1071)
+normalize <- function(x){return((x-min(x))/(max(x)-min(x)))}
+attach(df)
+df_norm <- cbind(as.data.frame(lapply(df[,1:6],normalize)),Y) 
+df_norm$Y = as.factor(df_norm$Y)
+summary(df_norm)
+
+set.seed(33445566) 
+sample <- sample(seq(1,200),140,replace = F) 
+df_train <- df_norm[sample,] 
+df_test <- df_norm[-sample,]
+
+df_train$Y = as.factor(df_train$Y)
+train_control <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+knn_fit <- train(Y ~., data = df_train, method = "knn",
+                 trControl=train_control,
+                 preProcess = c("center", "scale"),
+                 tuneLength = 10)
+dim(df_train)
+dim(df_test)
+knn_fit
+# k = 1
+m1 <- knn(train = df_train[,1:6],test = df_test[,1:6],cl = df_train[,7],k=1)
+(t1 <- table(df_test[,7],m1))
+(accur1 <- (t1[1,1]+t1[2,2])/(sum(t1)))
+# k = 3
+m3 <- knn(train = df_train[,1:6],test = df_test[,1:6],cl = df_train[,7],k=3)
+(t3 <- table(df_test[,7],m3))
+(accur3 <- (t3[1,1]+t3[2,2])/(sum(t3)))
+# k = 5
+m5 <- knn(train = df_train[,1:6],test = df_test[,1:6],cl = df_train[,7],k=5)
+(t5 <- table(df_test[,7],m5))
+(accur5 <- (t5[1,1]+t5[2,2])/(sum(t5)))
+# Misclassification rate
+(Miss1 <-1 / 60)
+(Miss3 <- 0 /60)
+(Miss5 <- 1 / 60)
+
+vv <- data.frame(knn_fit[4])
+plot(vv[,1],vv[,2],type = "b",col = "Red",xlab = "K",
+     ylab = "Accuracy")
+abline(v = 21, col = "blue")
+# Best k that maximizes the accuracy of my classifier is
+# K = 21 based on k vs accuracy.
+
+# Q4) 2.4.7
+obs1 <- c(0,3,0) 
+obs2 <- c(2,0,0) 
+obs3 <- c(0,1,3) 
+obs4 <- c(0,1,2) 
+obs5 <- c(-1,0,1) 
+obs6 <- c(1,1,1)
+t <- c(0,0,0)
+# (a)
+dist(rbind(t,obs1))
+dist(rbind(t,obs2))
+dist(rbind(t,obs3))
+dist(rbind(t,obs4))
+dist(rbind(t,obs5))
+dist(rbind(t,obs6))
+# (b)
+# If k = 1 our test point will be color "Green" because d5 is the closest from 
+# t. Assigned color for d5 is green and it is the closest from t indicates that 
+# the point classified as green under k = 1.
+# (c)
+# If k = 3, the 3 nearest points are d5 = 1.414214,d6 = 1.732051,d2 = 2.
+# Assigned color for obs5 is green, for obs6 is Red and for obs2 is Red.
+# Color "Green"" and "Red" has 1:2 ratio implies that I have to classify the point
+# as "Red" under k = 3
+
+
+
+```
