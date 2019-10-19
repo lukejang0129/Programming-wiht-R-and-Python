@@ -1,4 +1,4 @@
-# Repository for R-Programming 
+# Repository or R & Python Programming 
 
 - Computational Statistics with R
 - Data Analysis with Python
