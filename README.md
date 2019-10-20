@@ -1,7 +1,7 @@
 # Repository for R & Python Programming 
 
 - Computational Statistics with R
-- DataFest_by_Indeed
+- ASA DataFest 2018 by Indeed
 - Data Analysis with Python
 - Design and Analysis of Experiment
 - Monte Carlo Methods
